@@ -1,0 +1,53 @@
+.app-container {
+  min-height: 100vh;
+  padding: 4rem 2rem;
+  background: #f8fafc;
+}
+
+.hero {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.eyebrow {
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 3rem;
+  line-height: 1.1;
+}
+
+.description {
+  max-width: 700px;
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+
+  p {
+    margin: 0.25rem 0 0;
+  }
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+}
