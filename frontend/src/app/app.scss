@@ -45,9 +45,20 @@ h1 {
   }
 }
 
+.status.success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.status.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
+  flex: 0 0 auto;
   border-radius: 50%;
   background: #22c55e;
 }

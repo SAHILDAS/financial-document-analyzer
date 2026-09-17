@@ -9,7 +9,7 @@
       deterministic validation, financial analysis, and reconciliation.
     </p>
 
-    @if (health) {
+    @if (health()) {
       <section class="status success">
         <span class="status-dot"></span>
 
@@ -17,17 +17,17 @@
           <strong>Backend Connected</strong>
 
           <p>
-            {{ health.service }} — {{ health.environment }}
+            {{ health()!.service }} — {{ health()!.environment }}
           </p>
         </div>
       </section>
     }
 
-    @if (error) {
+    @if (error()) {
       <section class="status error">
         <strong>Backend Connection Failed</strong>
 
-        <p>{{ error }}</p>
+        <p>{{ error() }}</p>
       </section>
     }
   </section>
