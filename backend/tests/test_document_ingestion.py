@@ -3,12 +3,13 @@ from io import BytesIO
 import pymupdf
 from PIL import Image, ImageDraw, ImageFont
 
+from app.schemas.document import DocumentType
 from app.schemas.ingestion import (
     DocumentSource,
     ProcessingErrorCode,
 )
+from app.services.classification.document_classifier import DocumentClassifier
 from app.services.ingestion.document_ingestion import DocumentIngestionService
-
 
 def create_text_pdf(text: str) -> bytes:
     document = pymupdf.open()
@@ -160,6 +161,92 @@ def test_ingestion_service_uses_ocr_for_png():
     assert "BANK" in result.extracted_text.text.upper()
 
     assert result.errors == []
+
+def test_ingested_salary_pdf_can_be_classified():
+    ingestion_service = DocumentIngestionService()
+    classifier = DocumentClassifier()
+
+    content = create_text_pdf(
+        """
+        SALARY SLIP
+        Employee Name: Rahul Kumar
+        Employee ID: EMP-1001
+        Pay Period: August 2026
+
+        Earnings
+        Basic Salary: 50000
+        HRA: 20000
+        Gross Salary: 70000
+
+        Deductions
+        Provident Fund: 6000
+        Professional Tax: 200
+        TDS: 4000
+
+        Net Salary: 59800
+        """
+    )
+
+    ingestion_result = ingestion_service.ingest(
+        filename="salary.pdf",
+        content_type="application/pdf",
+        content=content,
+    )
+
+    assert ingestion_result.success is True
+    assert ingestion_result.extracted_text is not None
+
+    classification_result = classifier.classify(
+        ingestion_result.extracted_text.text
+    )
+
+    assert classification_result.document_type == DocumentType.SALARY_SLIP
+    assert classification_result.confidence >= 0.5
+    assert classification_result.reason is not None
+
+
+def test_ingested_bank_pdf_can_be_classified():
+    ingestion_service = DocumentIngestionService()
+    classifier = DocumentClassifier()
+
+    content = create_text_pdf(
+        """
+        BANK STATEMENT
+        Account Holder: Rahul Kumar
+        Account Number: 1234567890
+        IFSC: ABCD0001234
+
+        Opening Balance: 25000
+
+        Transaction Date
+        Narration
+        Debit
+        Credit
+        Balance
+
+        01/08/2026 Salary Credit 0 59800 84800
+        05/08/2026 Rent Payment 18000 0 66800
+
+        Closing Balance: 66800
+        """
+    )
+
+    ingestion_result = ingestion_service.ingest(
+        filename="bank.pdf",
+        content_type="application/pdf",
+        content=content,
+    )
+
+    assert ingestion_result.success is True
+    assert ingestion_result.extracted_text is not None
+
+    classification_result = classifier.classify(
+        ingestion_result.extracted_text.text
+    )
+
+    assert classification_result.document_type == DocumentType.BANK_STATEMENT
+    assert classification_result.confidence >= 0.5
+    assert classification_result.reason is not None
 
 
 def test_ingestion_service_rejects_unsupported_file_type():
