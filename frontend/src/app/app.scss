@@ -1,32 +1,53 @@
 .app-container {
   min-height: 100vh;
-  padding: 4rem 2rem;
+  padding: 3rem 1.5rem 5rem;
   background: #f8fafc;
+  color: #0f172a;
 }
 
 .hero {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
-.eyebrow {
-  margin-bottom: 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.eyebrow,
+.section-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: #64748b;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
 }
 
 h1 {
-  margin: 0;
-  font-size: 3rem;
-  line-height: 1.1;
+  margin-bottom: 1rem;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.35rem;
+}
+
+h3 {
+  font-size: 1rem;
 }
 
 .description {
-  max-width: 700px;
-  margin-top: 1rem;
-  font-size: 1.1rem;
+  max-width: 760px;
+  margin-bottom: 0;
+  color: #475569;
+  font-size: 1.05rem;
   line-height: 1.7;
 }
 
@@ -42,6 +63,7 @@ h1 {
 
   p {
     margin: 0.25rem 0 0;
+    color: #64748b;
   }
 }
 
@@ -61,4 +83,352 @@ h1 {
   flex: 0 0 auto;
   border-radius: 50%;
   background: #22c55e;
+}
+
+.workspace {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 1100px;
+  margin: 2.5rem auto 0;
+}
+
+.card {
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  background: white;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.muted {
+  color: #64748b;
+}
+
+.upload-card {
+  border-style: dashed;
+}
+
+.file-picker {
+  display: block;
+  margin-top: 1.25rem;
+  padding: 1.5rem;
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  color: #334155;
+  font-weight: 600;
+
+  &:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+  }
+
+  input {
+    display: none;
+  }
+}
+
+.selected-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+
+  div {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  span {
+    color: #64748b;
+    font-size: 0.85rem;
+  }
+}
+
+.primary-button,
+.secondary-button {
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button {
+  color: white;
+  background: #0f172a;
+
+  &:hover:not(:disabled) {
+    background: #1e293b;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.secondary-button {
+  color: #334155;
+  background: #e2e8f0;
+
+  &:hover {
+    background: #cbd5e1;
+  }
+}
+
+.analyze-button {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.confidence-badge,
+.validation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.confidence-badge small {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.confidence-high {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.confidence-medium {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.confidence-low {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.details-grid,
+.financial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.detail,
+.financial-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.detail span,
+.financial-item span {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.financial-item strong {
+  font-size: 1.05rem;
+}
+
+.financial-item.highlight {
+  background: #eff6ff;
+}
+
+.net-salary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 2rem 1.5rem;
+  background: #0f172a;
+  color: white;
+
+  .section-eyebrow {
+    color: #94a3b8;
+  }
+
+  h2 {
+    color: white;
+  }
+
+  > strong {
+    font-size: clamp(1.7rem, 4vw, 2.5rem);
+  }
+}
+
+.calculation {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.calculation-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+
+  span {
+    color: #64748b;
+  }
+
+  strong {
+    text-align: right;
+  }
+}
+
+.calculation-divider {
+  height: 1px;
+  margin: 0.5rem 0;
+  background: #e2e8f0;
+}
+
+.validation-badge.valid {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.validation-badge.invalid {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.empty-state {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.issues {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.issue {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+
+  strong {
+    font-size: 0.75rem;
+  }
+}
+
+.issue-error {
+  background: #fef2f2;
+
+  strong {
+    color: #991b1b;
+  }
+}
+
+.issue-warning {
+  background: #fffbeb;
+
+  strong {
+    color: #92400e;
+  }
+}
+
+.success-banner,
+.review-banner {
+  padding: 1rem;
+  border-radius: 0.75rem;
+
+  p {
+    margin: 0.35rem 0 0;
+  }
+}
+
+.success-banner {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.review-banner {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.confidence-reasons {
+  margin-top: 1.5rem;
+
+  ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: #64748b;
+  }
+
+  li + li {
+    margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 800px) {
+  .details-grid,
+  .financial-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analysis-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-container {
+    padding: 2rem 1rem 4rem;
+  }
+
+  .card {
+    padding: 1.1rem;
+  }
+
+  .details-grid,
+  .financial-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-file {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .net-salary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

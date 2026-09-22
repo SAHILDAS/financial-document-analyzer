@@ -2,7 +2,10 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { HealthResponse } from '../models/api-response.model';
+import {
+  AnalyzeResponse,
+  HealthResponse,
+} from '../models/api-response.model';
 
 @Injectable({
   providedIn: 'root',
@@ -15,6 +18,17 @@ export class ApiService {
   health(): Observable<HealthResponse> {
     return this.http.get<HealthResponse>(
       `${this.baseUrl}/health`,
+    );
+  }
+
+  analyzeDocument(file: File): Observable<AnalyzeResponse> {
+    const formData = new FormData();
+
+    formData.append('file', file);
+
+    return this.http.post<AnalyzeResponse>(
+      `${this.baseUrl}/documents/analyze`,
+      formData,
     );
   }
 }

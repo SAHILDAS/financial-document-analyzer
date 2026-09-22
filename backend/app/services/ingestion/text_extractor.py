@@ -82,6 +82,20 @@ class PdfTextExtractor:
 
     @staticmethod
     def _assess_quality(text: str) -> TextQuality:
+        """
+        Assess the quality of extracted native PDF text.
+
+        The score measures whether the extracted text looks usable,
+        rather than rewarding documents simply for being long.
+
+        Factors:
+        - character count
+        - word count
+        - line count
+        - replacement characters
+        - non-printable characters
+        """
+
         stripped = text.strip()
 
         if not stripped:
@@ -99,13 +113,74 @@ class PdfTextExtractor:
         word_count = len(words)
         line_count = len(lines)
 
-        quality_score = min(
+        if character_count == 0 or word_count == 0:
+            return TextQuality(
+                character_count=character_count,
+                word_count=word_count,
+                line_count=line_count,
+                is_empty=True,
+                quality_score=0.0,
+            )
+
+        # Use smaller saturation thresholds so short but clean
+        # business documents can still achieve a high quality score.
+        character_score = min(
+            character_count / 200,
             1.0,
-            (
-                min(character_count / 1000, 1.0) * 0.4
-                + min(word_count / 150, 1.0) * 0.3
-                + min(line_count / 30, 1.0) * 0.3
-            ),
+        )
+
+        word_score = min(
+            word_count / 40,
+            1.0,
+        )
+
+        line_score = min(
+            line_count / 10,
+            1.0,
+        )
+
+        quality_score = (
+            character_score * 0.35
+            + word_score * 0.35
+            + line_score * 0.30
+        )
+
+        # Penalize Unicode replacement characters because they are
+        # strong evidence that the extracted text contains corrupted
+        # or undecodable characters.
+        replacement_character_count = stripped.count("�")
+
+        if replacement_character_count:
+            replacement_ratio = (
+                replacement_character_count / character_count
+            )
+
+            quality_score -= min(
+                0.30,
+                replacement_ratio * 2.0,
+            )
+
+        # Penalize unexpected non-printable characters while allowing
+        # normal newline and tab characters.
+        non_printable_count = sum(
+            not character.isprintable()
+            and character not in "\n\t"
+            for character in stripped
+        )
+
+        if non_printable_count:
+            non_printable_ratio = (
+                non_printable_count / character_count
+            )
+
+            quality_score -= min(
+                0.20,
+                non_printable_ratio * 2.0,
+            )
+
+        quality_score = max(
+            0.0,
+            min(1.0, quality_score),
         )
 
         return TextQuality(
@@ -113,7 +188,10 @@ class PdfTextExtractor:
             word_count=word_count,
             line_count=line_count,
             is_empty=False,
-            quality_score=round(quality_score, 3),
+            quality_score=round(
+                quality_score,
+                3,
+            ),
         )
 
     @staticmethod

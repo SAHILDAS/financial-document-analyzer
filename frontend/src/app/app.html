@@ -1,12 +1,15 @@
 <main class="app-container">
   <section class="hero">
-    <p class="eyebrow">AI-Powered Document Intelligence</p>
+    <p class="eyebrow">
+      AI-Powered Document Intelligence
+    </p>
 
     <h1>Financial Document Analyzer</h1>
 
     <p class="description">
-      Analyze salary slips and bank statements using AI extraction,
-      deterministic validation, financial analysis, and reconciliation.
+      Analyze salary slips and bank statements using AI
+      extraction, deterministic validation, financial
+      analysis, and reconciliation.
     </p>
 
     @if (health()) {
@@ -17,7 +20,9 @@
           <strong>Backend Connected</strong>
 
           <p>
-            {{ health()!.service }} — {{ health()!.environment }}
+            {{ health()!.service }}
+            —
+            {{ health()!.environment }}
           </p>
         </div>
       </section>
@@ -25,10 +30,544 @@
 
     @if (error()) {
       <section class="status error">
-        <strong>Backend Connection Failed</strong>
+        <strong>Analysis Error</strong>
 
         <p>{{ error() }}</p>
       </section>
     }
+  </section>
+
+  <section class="workspace">
+
+    <!-- Upload -->
+    <section class="card upload-card">
+      <div class="section-heading">
+        <div>
+          <p class="section-eyebrow">
+            Step 1
+          </p>
+
+          <h2>Upload document</h2>
+        </div>
+      </div>
+
+      <p class="muted">
+        Supported formats: PDF, JPG, JPEG, PNG.
+      </p>
+
+      <label class="file-picker">
+        <span>
+          Choose financial document
+        </span>
+
+        <input
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          (change)="onFileSelected($event)"
+        />
+      </label>
+
+      @if (selectedFile(); as file) {
+        <div class="selected-file">
+          <div>
+            <strong>{{ file.name }}</strong>
+
+            <span>
+              {{ (file.size / 1024 / 1024).toFixed(2) }} MB
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="secondary-button"
+            (click)="clearAnalysis()"
+          >
+            Clear
+          </button>
+        </div>
+      }
+
+      <button
+        type="button"
+        class="primary-button analyze-button"
+        [disabled]="!selectedFile() || analyzing()"
+        (click)="analyzeDocument()"
+      >
+        @if (analyzing()) {
+          Analyzing document...
+        } @else {
+          Analyze document
+        }
+      </button>
+    </section>
+
+    <!-- Result -->
+    @if (analysis(); as result) {
+
+      @if (result.success && result.document_type === 'salary_slip' && result.data?.salary; as salaryAnalysis) {
+
+        <section class="analysis-header card">
+
+          <div>
+            <p class="section-eyebrow">
+              Document analyzed
+            </p>
+
+            <h2>Salary Slip</h2>
+
+            <p class="muted">
+              {{ result.data?.file?.filename }}
+            </p>
+          </div>
+
+          <div
+            class="confidence-badge"
+            [class]="getConfidenceClass(
+              salaryAnalysis.confidence.level
+            )"
+          >
+            <span>
+              {{ salaryAnalysis.confidence.level | uppercase }}
+            </span>
+
+            <small>
+              {{ formatPercentage(
+                salaryAnalysis.confidence.score
+              ) }}
+            </small>
+          </div>
+
+        </section>
+
+        <!-- Employee -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Employee
+              </p>
+
+              <h2>
+                {{ salaryAnalysis.salary.employee.name || 'Unknown employee' }}
+              </h2>
+            </div>
+          </div>
+
+          <div class="details-grid">
+
+            <div class="detail">
+              <span>Employer</span>
+              <strong>
+                {{ salaryAnalysis.salary.employee.employer || '—' }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>Employee ID</span>
+              <strong>
+                {{ salaryAnalysis.salary.employee.employee_id || '—' }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>Salary Month</span>
+              <strong>
+                {{ salaryAnalysis.salary.employee.salary_month || '—' }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Earnings -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Earnings
+              </p>
+
+              <h2>Salary components</h2>
+            </div>
+          </div>
+
+          <div class="financial-grid">
+
+            <div class="financial-item">
+              <span>Basic Salary</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.earnings.basic
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>HRA</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.earnings.hra
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Allowances</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.earnings.allowances
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Bonus</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.earnings.bonus
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Other Earnings</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.earnings.other
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item highlight">
+              <span>Gross Salary</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.earnings.gross
+                ) }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Deductions -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Deductions
+              </p>
+
+              <h2>Salary deductions</h2>
+            </div>
+          </div>
+
+          <div class="financial-grid">
+
+            <div class="financial-item">
+              <span>Provident Fund</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.deductions.pf
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Professional Tax</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.deductions.professional_tax
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>TDS</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.deductions.tds
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Other Deductions</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.deductions.other
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item highlight">
+              <span>Total Deductions</span>
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.salary.deductions.total
+                ) }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Net salary -->
+        <section class="net-salary card">
+
+          <div>
+            <p class="section-eyebrow">
+              Take-home
+            </p>
+
+            <h2>Net Salary</h2>
+          </div>
+
+          <strong>
+            {{ formatAmount(
+              salaryAnalysis.salary.net_salary
+            ) }}
+          </strong>
+
+        </section>
+
+        <!-- Calculation -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Deterministic validation
+              </p>
+
+              <h2>Salary calculation</h2>
+            </div>
+          </div>
+
+          <div class="calculation">
+
+            <div class="calculation-row">
+              <span>Reported Gross</span>
+
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.calculation.reported_gross
+                ) }}
+              </strong>
+            </div>
+
+            <div class="calculation-row">
+              <span>Calculated Earnings</span>
+
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.calculation.calculated_earnings
+                ) }}
+              </strong>
+            </div>
+
+            <div class="calculation-row">
+              <span>Earnings Difference</span>
+
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.calculation.earnings_difference
+                ) }}
+              </strong>
+            </div>
+
+            <div class="calculation-divider"></div>
+
+            <div class="calculation-row">
+              <span>Calculated Net Salary</span>
+
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.calculation.calculated_net
+                ) }}
+              </strong>
+            </div>
+
+            <div class="calculation-row">
+              <span>Reported Net Salary</span>
+
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.calculation.reported_net
+                ) }}
+              </strong>
+            </div>
+
+            <div class="calculation-row">
+              <span>Net Difference</span>
+
+              <strong>
+                {{ formatAmount(
+                  salaryAnalysis.calculation.net_difference
+                ) }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Validation -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Validation
+              </p>
+
+              <h2>Trust assessment</h2>
+            </div>
+
+            @if (salaryAnalysis.validation.is_valid) {
+              <span class="validation-badge valid">
+                ✓ Valid
+              </span>
+            } @else {
+              <span class="validation-badge invalid">
+                Review required
+              </span>
+            }
+          </div>
+
+          @if (salaryAnalysis.validation.issues.length === 0) {
+
+            <div class="empty-state">
+              No validation issues detected.
+            </div>
+
+          } @else {
+
+            <div class="issues">
+
+              @for (
+                issue of salaryAnalysis.validation.issues;
+                track issue.code
+              ) {
+
+                <div
+                  class="issue"
+                  [class.issue-error]="issue.severity === 'error'"
+                  [class.issue-warning]="issue.severity === 'warning'"
+                >
+                  <strong>
+                    {{ issue.severity | uppercase }}
+                  </strong>
+
+                  <span>
+                    {{ issue.message }}
+                  </span>
+                </div>
+
+              }
+
+            </div>
+
+          }
+
+        </section>
+
+        <!-- Confidence -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Confidence
+              </p>
+
+              <h2>
+                Extraction confidence
+              </h2>
+            </div>
+
+            <strong>
+              {{ formatPercentage(
+                salaryAnalysis.confidence.score
+              ) }}
+            </strong>
+          </div>
+
+          @if (salaryAnalysis.confidence.needs_review) {
+
+            <div class="review-banner">
+              <strong>Human review recommended</strong>
+
+              <p>
+                The system identified uncertainty or
+                validation issues in the extracted data.
+              </p>
+            </div>
+
+          } @else {
+
+            <div class="success-banner">
+              <strong>
+                No human review required
+              </strong>
+
+              <p>
+                The extracted values passed the current
+                deterministic validation rules.
+              </p>
+            </div>
+
+          }
+
+          @if (salaryAnalysis.confidence.reasons.length > 0) {
+
+            <div class="confidence-reasons">
+
+              <h3>Assessment details</h3>
+
+              <ul>
+                @for (
+                  reason of salaryAnalysis.confidence.reasons;
+                  track reason
+                ) {
+                  <li>{{ reason }}</li>
+                }
+              </ul>
+
+            </div>
+
+          }
+
+        </section>
+
+      } @else {
+
+        <section class="card">
+
+          <p class="section-eyebrow">
+            Document classification
+          </p>
+
+          <h2>
+            {{ result.document_type || 'Unknown' }}
+          </h2>
+
+          <p class="muted">
+            This document was processed, but a salary
+            analysis was not produced.
+          </p>
+
+        </section>
+
+      }
+
+    }
+
   </section>
 </main>

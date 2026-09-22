@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from app.schemas.document import DocumentType
@@ -6,6 +8,7 @@ from app.schemas.ingestion import (
     ExtractionMethod,
     ProcessingError,
 )
+from app.schemas.salary_analysis import SalaryAnalysisResult
 
 
 class AnalyzeFileInfo(BaseModel):
@@ -24,6 +27,8 @@ class AnalyzeProcessingInfo(BaseModel):
 class AnalyzeData(BaseModel):
     classification_reason: str | None = None
     file: AnalyzeFileInfo
+    salary: SalaryAnalysisResult | None = None
+    extra: dict[str, Any] | None = None
 
 
 class AnalyzeResponse(BaseModel):
