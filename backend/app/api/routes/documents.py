@@ -10,7 +10,10 @@ from app.schemas.analyze import (
 from app.schemas.document import DocumentType
 from app.services.analysis.document_analysis import DocumentAnalysisService
 from app.services.classification.document_classifier import DocumentClassifier
-from app.services.extraction.providers.factory import create_salary_extractor
+from app.services.extraction.providers.factory import (
+    create_bank_extractor,
+    create_salary_extractor,
+)
 from app.services.ingestion.document_ingestion import DocumentIngestionService
 
 router = APIRouter(
@@ -22,9 +25,11 @@ ingestion_service = DocumentIngestionService()
 classifier = DocumentClassifier()
 
 salary_extractor = create_salary_extractor()
+bank_extractor = create_bank_extractor()
 
 document_analysis_service = DocumentAnalysisService(
     salary_extractor=salary_extractor,
+    bank_extractor=bank_extractor,
 )
 
 
@@ -153,11 +158,31 @@ async def analyze_document(
 
     # ---------------------------------------------------------
     # 8. Handle bank statement
-    #
-    # Bank extraction/analysis will be implemented during Day 4.
-    # For now, preserve the existing classification behavior.
     # ---------------------------------------------------------
     if classification.document_type == DocumentType.BANK_STATEMENT:
+        try:
+            bank_analysis = document_analysis_service.analyze_bank(
+                extracted_text.text,
+            )
+
+        except Exception:
+            response = AnalyzeResponse(
+                success=False,
+                document_id=ingestion_result.document_id,
+                document_type=classification.document_type,
+                confidence=classification.confidence,
+                data=AnalyzeData(
+                    classification_reason=classification.reason,
+                    file=file_info,
+                ),
+                processing=processing,
+            )
+
+            return JSONResponse(
+                status_code=422,
+                content=response.model_dump(mode="json"),
+            )
+
         return AnalyzeResponse(
             success=True,
             document_id=ingestion_result.document_id,
@@ -166,10 +191,14 @@ async def analyze_document(
             data=AnalyzeData(
                 classification_reason=classification.reason,
                 file=file_info,
+                bank=bank_analysis,
+            ),
+            validation=bank_analysis.validation.model_dump(
+                mode="json",
             ),
             processing=processing,
         )
-
+    
     # ---------------------------------------------------------
     # 9. Handle salary slip
     # ---------------------------------------------------------

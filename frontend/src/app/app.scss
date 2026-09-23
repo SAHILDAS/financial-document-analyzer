@@ -51,6 +51,10 @@ h3 {
   line-height: 1.7;
 }
 
+/* ========================================================= */
+/* Status */
+/* ========================================================= */
+
 .status {
   display: flex;
   align-items: center;
@@ -85,6 +89,10 @@ h3 {
   background: #22c55e;
 }
 
+/* ========================================================= */
+/* Workspace / Cards */
+/* ========================================================= */
+
 .workspace {
   display: grid;
   gap: 1.25rem;
@@ -111,6 +119,10 @@ h3 {
 .muted {
   color: #64748b;
 }
+
+/* ========================================================= */
+/* Upload */
+/* ========================================================= */
 
 .upload-card {
   border-style: dashed;
@@ -196,6 +208,10 @@ h3 {
   margin-top: 1rem;
 }
 
+/* ========================================================= */
+/* Analysis Header / Confidence */
+/* ========================================================= */
+
 .analysis-header {
   display: flex;
   align-items: center;
@@ -235,6 +251,10 @@ h3 {
   background: #fee2e2;
 }
 
+/* ========================================================= */
+/* Details / Financial Information */
+/* ========================================================= */
+
 .details-grid,
 .financial-grid {
   display: grid;
@@ -265,6 +285,10 @@ h3 {
   background: #eff6ff;
 }
 
+/* ========================================================= */
+/* Net Salary */
+/* ========================================================= */
+
 .net-salary {
   display: flex;
   align-items: center;
@@ -286,6 +310,10 @@ h3 {
     font-size: clamp(1.7rem, 4vw, 2.5rem);
   }
 }
+
+/* ========================================================= */
+/* Salary Calculation */
+/* ========================================================= */
 
 .calculation {
   display: grid;
@@ -311,6 +339,10 @@ h3 {
   margin: 0.5rem 0;
   background: #e2e8f0;
 }
+
+/* ========================================================= */
+/* Validation */
+/* ========================================================= */
 
 .validation-badge.valid {
   color: #166534;
@@ -362,6 +394,10 @@ h3 {
   }
 }
 
+/* ========================================================= */
+/* Confidence Banners */
+/* ========================================================= */
+
 .success-banner,
 .review-banner {
   padding: 1rem;
@@ -393,6 +429,235 @@ h3 {
 
   li + li {
     margin-top: 0.5rem;
+  }
+}
+
+/* ========================================================= */
+/* BANK ANALYSIS */
+/* ========================================================= */
+
+.bank-analysis {
+  display: grid;
+  gap: 1.25rem;
+}
+
+/* ========================================================= */
+/* Bank Financial Insights */
+/* ========================================================= */
+
+.bank-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.insight-card {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+
+.insight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+.insight-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.insight-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.7rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+
+  > div {
+    min-width: 0;
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span:not(.score-badge) {
+    color: #64748b;
+    font-size: 0.8rem;
+  }
+}
+
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: #dbeafe;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+/* ========================================================= */
+/* Bank Transactions */
+/* ========================================================= */
+
+.transaction-card {
+  overflow: hidden;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.transaction-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+
+  th,
+  td {
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tbody tr:hover {
+    background: #f8fafc;
+  }
+}
+
+.narration-cell {
+  max-width: 320px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.transaction-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.transaction-type.credit {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.transaction-type.debit {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.credit-amount {
+  color: #166534;
+  font-weight: 700;
+}
+
+.debit-amount {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+/* ========================================================= */
+/* Bank Processing Details */
+/* ========================================================= */
+
+.processing-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+/* ========================================================= */
+/* Responsive */
+/* ========================================================= */
+
+@media (max-width: 900px) {
+  .bank-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-grid,
+  .financial-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analysis-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
@@ -430,5 +695,23 @@ h3 {
   .net-salary {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .bank-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .insight-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .insight-item > strong,
+  .score-badge {
+    align-self: flex-start;
+  }
+
+  .transaction-table {
+    min-width: 780px;
   }
 }

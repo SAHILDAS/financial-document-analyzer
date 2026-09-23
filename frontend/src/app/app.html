@@ -39,7 +39,10 @@
 
   <section class="workspace">
 
+    <!-- ===================================================== -->
     <!-- Upload -->
+    <!-- ===================================================== -->
+
     <section class="card upload-card">
       <div class="section-heading">
         <div>
@@ -101,13 +104,24 @@
       </button>
     </section>
 
-    <!-- Result -->
+    <!-- ===================================================== -->
+    <!-- Analysis Result -->
+    <!-- ===================================================== -->
+
     @if (analysis(); as result) {
 
-      @if (result.success && result.document_type === 'salary_slip' && result.data?.salary; as salaryAnalysis) {
+      <!-- =================================================== -->
+      <!-- Salary Slip -->
+      <!-- =================================================== -->
+
+      @if (
+        result.success &&
+        result.document_type === 'salary_slip' &&
+        result.data?.salary;
+        as salaryAnalysis
+      ) {
 
         <section class="analysis-header card">
-
           <div>
             <p class="section-eyebrow">
               Document analyzed
@@ -136,12 +150,10 @@
               ) }}
             </small>
           </div>
-
         </section>
 
         <!-- Employee -->
         <section class="card">
-
           <div class="section-heading">
             <div>
               <p class="section-eyebrow">
@@ -158,6 +170,7 @@
 
             <div class="detail">
               <span>Employer</span>
+
               <strong>
                 {{ salaryAnalysis.salary.employee.employer || '—' }}
               </strong>
@@ -165,6 +178,7 @@
 
             <div class="detail">
               <span>Employee ID</span>
+
               <strong>
                 {{ salaryAnalysis.salary.employee.employee_id || '—' }}
               </strong>
@@ -172,18 +186,17 @@
 
             <div class="detail">
               <span>Salary Month</span>
+
               <strong>
                 {{ salaryAnalysis.salary.employee.salary_month || '—' }}
               </strong>
             </div>
 
           </div>
-
         </section>
 
         <!-- Earnings -->
         <section class="card">
-
           <div class="section-heading">
             <div>
               <p class="section-eyebrow">
@@ -198,6 +211,7 @@
 
             <div class="financial-item">
               <span>Basic Salary</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.earnings.basic
@@ -207,6 +221,7 @@
 
             <div class="financial-item">
               <span>HRA</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.earnings.hra
@@ -216,6 +231,7 @@
 
             <div class="financial-item">
               <span>Allowances</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.earnings.allowances
@@ -225,6 +241,7 @@
 
             <div class="financial-item">
               <span>Bonus</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.earnings.bonus
@@ -234,6 +251,7 @@
 
             <div class="financial-item">
               <span>Other Earnings</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.earnings.other
@@ -243,6 +261,7 @@
 
             <div class="financial-item highlight">
               <span>Gross Salary</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.earnings.gross
@@ -251,12 +270,10 @@
             </div>
 
           </div>
-
         </section>
 
         <!-- Deductions -->
         <section class="card">
-
           <div class="section-heading">
             <div>
               <p class="section-eyebrow">
@@ -271,6 +288,7 @@
 
             <div class="financial-item">
               <span>Provident Fund</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.deductions.pf
@@ -280,6 +298,7 @@
 
             <div class="financial-item">
               <span>Professional Tax</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.deductions.professional_tax
@@ -289,6 +308,7 @@
 
             <div class="financial-item">
               <span>TDS</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.deductions.tds
@@ -298,6 +318,7 @@
 
             <div class="financial-item">
               <span>Other Deductions</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.deductions.other
@@ -307,6 +328,7 @@
 
             <div class="financial-item highlight">
               <span>Total Deductions</span>
+
               <strong>
                 {{ formatAmount(
                   salaryAnalysis.salary.deductions.total
@@ -315,12 +337,10 @@
             </div>
 
           </div>
-
         </section>
 
         <!-- Net salary -->
         <section class="net-salary card">
-
           <div>
             <p class="section-eyebrow">
               Take-home
@@ -334,12 +354,10 @@
               salaryAnalysis.salary.net_salary
             ) }}
           </strong>
-
         </section>
 
         <!-- Calculation -->
         <section class="card">
-
           <div class="section-heading">
             <div>
               <p class="section-eyebrow">
@@ -415,12 +433,10 @@
             </div>
 
           </div>
-
         </section>
 
         <!-- Validation -->
         <section class="card">
-
           <div class="section-heading">
             <div>
               <p class="section-eyebrow">
@@ -546,7 +562,747 @@
 
         </section>
 
-      } @else {
+      }
+
+      <!-- =================================================== -->
+      <!-- Bank Statement -->
+      <!-- =================================================== -->
+
+      @if (
+        result.success &&
+        result.document_type === 'bank_statement' &&
+        bankAnalysis;
+        as bank
+      ) {
+
+        <!-- Bank document header -->
+        <section class="analysis-header card">
+
+          <div>
+            <p class="section-eyebrow">
+              Document analyzed
+            </p>
+
+            <h2>Bank Statement</h2>
+
+            <p class="muted">
+              {{ result.data?.file?.filename }}
+            </p>
+          </div>
+
+          <div class="confidence-badge">
+            <span>
+              {{ formatPercentage(result.confidence) }}
+            </span>
+
+            <small>
+              Classification confidence
+            </small>
+          </div>
+
+        </section>
+
+        <!-- Account information -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Account
+              </p>
+
+              <h2>
+                Account information
+              </h2>
+            </div>
+          </div>
+
+          <div class="details-grid">
+
+            <div class="detail">
+              <span>Account Holder</span>
+
+              <strong>
+                {{ bank.statement.account.holder_name || '—' }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>Bank</span>
+
+              <strong>
+                {{ bank.statement.account.bank_name || '—' }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>Account Number</span>
+
+              <strong>
+                {{ bank.statement.account.account_number || '—' }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>IFSC</span>
+
+              <strong>
+                {{ bank.statement.account.ifsc || '—' }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Statement period -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Statement period
+              </p>
+
+              <h2>
+                Period & balances
+              </h2>
+            </div>
+          </div>
+
+          <div class="details-grid">
+
+            <div class="detail">
+              <span>From</span>
+
+              <strong>
+                {{ formatDate(
+                  bank.statement.statement_period.from_date
+                ) }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>To</span>
+
+              <strong>
+                {{ formatDate(
+                  bank.statement.statement_period.to_date
+                ) }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>Opening Balance</span>
+
+              <strong>
+                {{ formatAmount(
+                  bank.statement.opening_balance
+                ) }}
+              </strong>
+            </div>
+
+            <div class="detail">
+              <span>Closing Balance</span>
+
+              <strong>
+                {{ formatAmount(
+                  bank.statement.closing_balance
+                ) }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Financial summary -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Financial summary
+              </p>
+
+              <h2>
+                Account activity
+              </h2>
+            </div>
+          </div>
+
+          <div class="financial-grid">
+
+            <div class="financial-item highlight">
+              <span>Total Credits</span>
+
+              <strong>
+                {{ formatAmount(
+                  bank.analysis.total_credits
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Total Debits</span>
+
+              <strong>
+                {{ formatAmount(
+                  bank.analysis.total_debits
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Average Monthly Credit</span>
+
+              <strong>
+                {{ formatAmount(
+                  bank.analysis.average_monthly_credit
+                ) }}
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Transactions</span>
+
+              <strong>
+                {{ bank.statement.transactions.length }}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Financial insights -->
+        <section class="card">
+
+          <div class="section-heading">
+            <div>
+              <p class="section-eyebrow">
+                Financial intelligence
+              </p>
+
+              <h2>
+                Detected patterns
+              </h2>
+            </div>
+          </div>
+
+          <div class="bank-insights-grid">
+
+            <!-- Salary credits -->
+            <div class="insight-card">
+
+              <div class="insight-header">
+                <div>
+                  <span class="insight-label">
+                    Salary credits
+                  </span>
+
+                  <h3>
+                    Possible salary credits
+                  </h3>
+                </div>
+
+                <span class="count-badge">
+                  {{ bank.analysis.salary_credit_candidates.length }}
+                </span>
+              </div>
+
+              @if (
+                bank.analysis.salary_credit_candidates.length === 0
+              ) {
+
+                <div class="empty-state">
+                  No possible salary credits detected.
+                </div>
+
+              } @else {
+
+                <div class="insight-list">
+
+                  @for (
+                    candidate of bank.analysis.salary_credit_candidates;
+                    track candidate.transaction.date + candidate.transaction.narration
+                  ) {
+
+                    <div class="insight-item">
+
+                      <div>
+                        <strong>
+                          {{ candidate.transaction.narration }}
+                        </strong>
+
+                        <span>
+                          {{ formatDate(
+                            candidate.transaction.date
+                          ) }}
+                          ·
+                          {{ formatAmount(
+                            candidate.transaction.credit
+                          ) }}
+                        </span>
+                      </div>
+
+                      <span class="score-badge">
+                        {{ formatPercentage(candidate.score) }}
+                      </span>
+
+                    </div>
+
+                  }
+
+                </div>
+
+              }
+
+            </div>
+
+            <!-- Large transactions -->
+            <div class="insight-card">
+
+              <div class="insight-header">
+                <div>
+                  <span class="insight-label">
+                    Large transactions
+                  </span>
+
+                  <h3>
+                    Transactions above ₹50,000
+                  </h3>
+                </div>
+
+                <span class="count-badge">
+                  {{ bank.analysis.large_transactions.length }}
+                </span>
+              </div>
+
+              @if (
+                bank.analysis.large_transactions.length === 0
+              ) {
+
+                <div class="empty-state">
+                  No transactions above ₹50,000 detected.
+                </div>
+
+              } @else {
+
+                <div class="insight-list">
+
+                  @for (
+                    item of bank.analysis.large_transactions;
+                    track item.transaction.date + item.transaction.narration
+                  ) {
+
+                    <div class="insight-item">
+
+                      <div>
+                        <strong>
+                          {{ item.transaction.narration }}
+                        </strong>
+
+                        <span>
+                          {{ formatDate(
+                            item.transaction.date
+                          ) }}
+                          ·
+                          {{ item.direction | titlecase }}
+                        </span>
+                      </div>
+
+                      <strong>
+                        {{ formatAmount(item.amount) }}
+                      </strong>
+
+                    </div>
+
+                  }
+
+                </div>
+
+              }
+
+            </div>
+
+            <!-- Recurring transactions -->
+            <div class="insight-card">
+
+              <div class="insight-header">
+                <div>
+                  <span class="insight-label">
+                    Recurring patterns
+                  </span>
+
+                  <h3>
+                    Recurring transactions
+                  </h3>
+                </div>
+
+                <span class="count-badge">
+                  {{ bank.analysis.recurring_transactions.length }}
+                </span>
+              </div>
+
+              @if (
+                bank.analysis.recurring_transactions.length === 0
+              ) {
+
+                <div class="empty-state">
+                  No recurring transaction patterns detected.
+                </div>
+
+              } @else {
+
+                <div class="insight-list">
+
+                  @for (
+                    item of bank.analysis.recurring_transactions;
+                    track item.narration
+                  ) {
+
+                    <div class="insight-item">
+
+                      <div>
+                        <strong>
+                          {{ item.narration }}
+                        </strong>
+
+                        <span>
+                          {{ item.occurrence_count }}
+                          occurrences
+
+                          @if (item.approximate_interval_days) {
+                            · approximately
+                            {{ item.approximate_interval_days }}
+                            days
+                          }
+                        </span>
+                      </div>
+
+                      <strong>
+                        {{ formatAmount(item.average_amount) }}
+                      </strong>
+
+                    </div>
+
+                  }
+
+                </div>
+
+              }
+
+            </div>
+
+            <!-- EMI / loan -->
+            <div class="insight-card">
+
+              <div class="insight-header">
+                <div>
+                  <span class="insight-label">
+                    Loan indicators
+                  </span>
+
+                  <h3>
+                    Probable EMI / loan transactions
+                  </h3>
+                </div>
+
+                <span class="count-badge">
+                  {{ bank.analysis.emi_candidates.length }}
+                </span>
+              </div>
+
+              @if (
+                bank.analysis.emi_candidates.length === 0
+              ) {
+
+                <div class="empty-state">
+                  No probable EMI or loan transactions detected.
+                </div>
+
+              } @else {
+
+                <div class="insight-list">
+
+                  @for (
+                    candidate of bank.analysis.emi_candidates;
+                    track candidate.transaction.date + candidate.transaction.narration
+                  ) {
+
+                    <div class="insight-item">
+
+                      <div>
+                        <strong>
+                          {{ candidate.transaction.narration }}
+                        </strong>
+
+                        <span>
+                          {{ formatDate(
+                            candidate.transaction.date
+                          ) }}
+                          ·
+                          {{ formatAmount(
+                            candidate.transaction.debit
+                          ) }}
+                        </span>
+                      </div>
+
+                      <span class="score-badge">
+                        {{ formatPercentage(candidate.score) }}
+                      </span>
+
+                    </div>
+
+                  }
+
+                </div>
+
+              }
+
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- Transactions -->
+        <section class="card transaction-card">
+
+          <div class="section-heading">
+
+            <div>
+              <p class="section-eyebrow">
+                Transactions
+              </p>
+
+              <h2>
+                Transaction history
+              </h2>
+
+              <p class="muted">
+                Extracted transactions from the statement.
+              </p>
+            </div>
+
+            <span class="count-badge">
+              {{ bank.statement.transactions.length }}
+            </span>
+
+          </div>
+
+          <div class="table-wrapper">
+
+            <table class="transaction-table">
+
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Narration</th>
+                  <th>Type</th>
+                  <th>Debit</th>
+                  <th>Credit</th>
+                  <th>Balance</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                @for (
+                  transaction of bank.statement.transactions;
+                  track transaction.date + transaction.narration + transaction.balance
+                ) {
+
+                  <tr>
+
+                    <td>
+                      {{ formatDate(transaction.date) }}
+                    </td>
+
+                    <td class="narration-cell">
+                      {{ transaction.narration }}
+                    </td>
+
+                    <td>
+
+                      <span
+                        class="transaction-type"
+                        [class]="getTransactionTypeClass(transaction)"
+                      >
+                        {{ getTransactionType(transaction) }}
+                      </span>
+
+                    </td>
+
+                    <td class="amount debit-amount">
+                      {{ formatAmount(transaction.debit) }}
+                    </td>
+
+                    <td class="amount credit-amount">
+                      {{ formatAmount(transaction.credit) }}
+                    </td>
+
+                    <td class="amount">
+                      {{ formatAmount(transaction.balance) }}
+                    </td>
+
+                  </tr>
+
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+        <!-- Bank validation -->
+        <section class="card">
+
+          <div class="section-heading">
+
+            <div>
+              <p class="section-eyebrow">
+                Validation
+              </p>
+
+              <h2>
+                Transaction trust assessment
+              </h2>
+            </div>
+
+            @if (bank.validation.is_valid) {
+
+              <span class="validation-badge valid">
+                ✓ Valid
+              </span>
+
+            } @else {
+
+              <span class="validation-badge invalid">
+                Review required
+              </span>
+
+            }
+
+          </div>
+
+          @if (bank.validation.issues.length === 0) {
+
+            <div class="empty-state">
+              No transaction validation issues detected.
+            </div>
+
+          } @else {
+
+            <div class="issues">
+
+              @for (
+                issue of bank.validation.issues;
+                track issue.code + issue.message + issue.transaction_index
+              ) {
+
+                <div
+                  class="issue"
+                  [class.issue-error]="issue.severity === 'error'"
+                  [class.issue-warning]="issue.severity === 'warning'"
+                >
+
+                  <strong>
+                    {{ issue.severity | uppercase }}
+                  </strong>
+
+                  <span>
+                    {{ issue.message }}
+                  </span>
+
+                </div>
+
+              }
+
+            </div>
+
+          }
+
+        </section>
+
+        <!-- Bank processing information -->
+        <section class="card">
+
+          <div class="section-heading">
+
+            <div>
+              <p class="section-eyebrow">
+                Processing
+              </p>
+
+              <h2>
+                Document processing details
+              </h2>
+            </div>
+
+          </div>
+
+          @if (result.processing) {
+
+            <div class="details-grid">
+
+              <div class="detail">
+                <span>Extraction Source</span>
+
+                <strong>
+                  {{ result.processing.source | uppercase }}
+                </strong>
+              </div>
+
+              <div class="detail">
+                <span>Pages Processed</span>
+
+                <strong>
+                  {{ result.processing.page_count }}
+                </strong>
+              </div>
+
+              <div class="detail">
+                <span>Text Quality</span>
+
+                <strong>
+                  {{ formatPercentage(
+                    result.processing.text_quality_score
+                  ) }}
+                </strong>
+              </div>
+
+              <div class="detail">
+                <span>Extraction Methods</span>
+
+                <strong>
+                  {{ result.processing.methods.join(', ') }}
+                </strong>
+              </div>
+
+            </div>
+
+          }
+
+        </section>
+
+      }
+
+      <!-- =================================================== -->
+      <!-- Other / Unknown document -->
+      <!-- =================================================== -->
+
+      @if (
+        result.document_type === 'unknown' ||
+        (
+          result.document_type !== 'salary_slip' &&
+          result.document_type !== 'bank_statement'
+        )
+      ) {
 
         <section class="card">
 
@@ -559,9 +1315,17 @@
           </h2>
 
           <p class="muted">
-            This document was processed, but a salary
-            analysis was not produced.
+            This document was processed, but no supported
+            financial analysis was produced.
           </p>
+
+          @if (result.data?.classification_reason) {
+
+            <div class="empty-state">
+              {{ result.data.classification_reason }}
+            </div>
+
+          }
 
         </section>
 

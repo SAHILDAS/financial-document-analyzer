@@ -10,6 +10,8 @@ import { CommonModule } from '@angular/common';
 import { ApiService } from './core/services/api.service';
 import {
   AnalyzeResponse,
+  BankAnalysisResult,
+  BankTransaction,
   HealthResponse,
 } from './core/models/api-response.model';
 
@@ -40,6 +42,7 @@ export class App implements OnInit {
       },
       error: (error) => {
         console.error('Backend health check failed:', error);
+
         this.error.set(
           'Unable to connect to the backend.',
         );
@@ -61,7 +64,9 @@ export class App implements OnInit {
     const file = this.selectedFile();
 
     if (!file) {
-      this.error.set('Please select a document first.');
+      this.error.set(
+        'Please select a document first.',
+      );
       return;
     }
 
@@ -97,10 +102,27 @@ export class App implements OnInit {
   }
 
   isSalaryAnalysis(): boolean {
+    const result = this.analysis();
+
     return (
-      this.analysis()?.document_type === 'salary_slip' &&
-      this.analysis()?.data?.salary !== null
+      result?.document_type === 'salary_slip' &&
+      result.data?.salary !== null &&
+      result.data?.salary !== undefined
     );
+  }
+
+  isBankAnalysis(): boolean {
+    const result = this.analysis();
+
+    return (
+      result?.document_type === 'bank_statement' &&
+      result.data?.bank !== null &&
+      result.data?.bank !== undefined
+    );
+  }
+
+  get bankAnalysis(): BankAnalysisResult | null {
+    return this.analysis()?.data?.bank ?? null;
   }
 
   formatAmount(
@@ -147,5 +169,76 @@ export class App implements OnInit {
       default:
         return '';
     }
+  }
+
+  formatDate(
+    value: string | null | undefined,
+  ): string {
+    if (!value) {
+      return '—';
+    }
+
+    const date = new Date(
+      `${value}T00:00:00`,
+    );
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat(
+      'en-IN',
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      },
+    ).format(date);
+  }
+
+  getBankTransactionAmount(
+    transaction: BankTransaction,
+  ): string {
+    if (transaction.credit) {
+      return this.formatAmount(
+        transaction.credit,
+      );
+    }
+
+    if (transaction.debit) {
+      return this.formatAmount(
+        transaction.debit,
+      );
+    }
+
+    return '—';
+  }
+
+  getTransactionType(
+    transaction: BankTransaction,
+  ): string {
+    if (transaction.credit) {
+      return 'Credit';
+    }
+
+    if (transaction.debit) {
+      return 'Debit';
+    }
+
+    return '—';
+  }
+
+  getTransactionTypeClass(
+    transaction: BankTransaction,
+  ): string {
+    if (transaction.credit) {
+      return 'credit';
+    }
+
+    if (transaction.debit) {
+      return 'debit';
+    }
+
+    return '';
   }
 }

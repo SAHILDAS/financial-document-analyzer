@@ -9,6 +9,7 @@ from app.schemas.ingestion import (
     ProcessingError,
 )
 from app.schemas.salary_analysis import SalaryAnalysisResult
+from app.schemas.bank_analysis_response import BankAnalysisResult
 
 
 class AnalyzeFileInfo(BaseModel):
@@ -28,6 +29,7 @@ class AnalyzeData(BaseModel):
     classification_reason: str | None = None
     file: AnalyzeFileInfo
     salary: SalaryAnalysisResult | None = None
+    bank: BankAnalysisResult | None = None
     extra: dict[str, Any] | None = None
 
 

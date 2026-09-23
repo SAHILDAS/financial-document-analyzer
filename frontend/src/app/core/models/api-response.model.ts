@@ -106,6 +106,7 @@ export interface AnalyzeData {
   classification_reason: string | null;
   file: AnalyzeFileInfo;
   salary: SalaryAnalysisResult | null;
+  bank: BankAnalysisResult | null;
   extra: Record<string, unknown> | null;
 }
 
@@ -125,3 +126,88 @@ export interface AnalyzeResponse {
   processing: AnalyzeProcessingInfo | null;
   errors: ProcessingError[];
 }
+
+export interface BankAccount {
+  holder_name: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  ifsc: string | null;
+}
+
+export interface BankStatementPeriod {
+  from_date: string | null;
+  to_date: string | null;
+}
+
+export interface BankTransaction {
+  date: string;
+  narration: string;
+  debit: string | null;
+  credit: string | null;
+  balance: string | null;
+}
+
+export interface BankStatement {
+  account: BankAccount;
+  statement_period: BankStatementPeriod;
+  opening_balance: string | null;
+  closing_balance: string | null;
+  transactions: BankTransaction[];
+}
+
+export interface LargeTransaction {
+  transaction: BankTransaction;
+  amount: string;
+  direction: string;
+  reason: string;
+}
+
+export interface SalaryCreditCandidate {
+  transaction: BankTransaction;
+  score: number;
+  reasons: string[];
+}
+
+export interface RecurringTransaction {
+  narration: string;
+  occurrence_count: number;
+  amounts: string[];
+  average_amount: string | null;
+  approximate_interval_days: number | null;
+  reasons: string[];
+}
+
+export interface EmiCandidate {
+  transaction: BankTransaction;
+  score: number;
+  reasons: string[];
+}
+
+export interface BankFinancialAnalysis {
+  total_credits: string;
+  total_debits: string;
+  average_monthly_credit: string | null;
+  large_transactions: LargeTransaction[];
+  salary_credit_candidates: SalaryCreditCandidate[];
+  recurring_transactions: RecurringTransaction[];
+  emi_candidates: EmiCandidate[];
+}
+
+export interface BankValidationIssue {
+  code: string;
+  message: string;
+  severity: 'info' | 'warning' | 'error';
+  transaction_index: number | null;
+}
+
+export interface BankValidationResult {
+  is_valid: boolean;
+  issues: BankValidationIssue[];
+}
+
+export interface BankAnalysisResult {
+  statement: BankStatement;
+  analysis: BankFinancialAnalysis;
+  validation: BankValidationResult;
+}
+
