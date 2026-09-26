@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.documents import router as documents_router
 from app.api.routes.health import router as health_router
+from app.api.routes import reconciliation
 from app.core.config import settings
 
 
@@ -30,6 +31,11 @@ app.include_router(
 
 app.include_router(
     documents_router,
+    prefix="/api",
+)
+
+app.include_router(
+    reconciliation.router,
     prefix="/api",
 )
 

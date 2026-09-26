@@ -21,16 +21,19 @@ class SalaryCalculator:
             earnings.other,
         ]
 
-        can_calculate_earnings = all(
-            value is not None
+        present_earning_components = [
+            value
             for value in earning_components
-        )
+            if value is not None
+        ]
+
+        can_calculate_earnings = bool(present_earning_components)
 
         calculated_earnings: Decimal | None = None
 
         if can_calculate_earnings:
             calculated_earnings = sum(
-                earning_components,
+                present_earning_components,
                 Decimal("0"),
             )
 

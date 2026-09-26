@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     llm_provider: str | None = None
     llm_api_key: str | None = None
+    llm_model: str = "gpt-5.6-luna"
 
     ocr_provider: str = "tesseract"
 

@@ -715,3 +715,165 @@ h3 {
     min-width: 780px;
   }
 }
+
+/* ========================================================= */
+/* Salary + Bank Reconciliation */
+/* ========================================================= */
+
+.reconciliation-workspace {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.reconciliation-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.reconciliation-upload-card {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+
+.section-heading.compact {
+  margin-bottom: 0.75rem;
+}
+
+.reconciliation-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.reconciliation-summary .detail {
+  padding: 0.8rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+}
+
+.reconciliation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.reconciliation-readiness {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.75rem;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.reconciliation-error {
+  margin-top: 0;
+}
+
+.reconciliation-result {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.reconciliation-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reconciliation-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.nested-card {
+  padding: 1.25rem;
+  box-shadow: none;
+  background: #f8fafc;
+}
+
+.reconciliation-narration {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+}
+
+.reconciliation-narration span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.reconciliation-narration strong {
+  overflow-wrap: anywhere;
+}
+
+.reconciliation-selected {
+  background: #eff6ff;
+}
+
+.reconciliation-table {
+  min-width: 1050px;
+}
+
+.reconciliation-method-note {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.reconciliation-method-note strong {
+  color: #0f172a;
+}
+
+/* ========================================================= */
+/* Reconciliation Responsive */
+/* ========================================================= */
+
+@media (max-width: 900px) {
+  .reconciliation-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reconciliation-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reconciliation-result-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .reconciliation-summary,
+  .reconciliation-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .reconciliation-actions {
+    flex-direction: column;
+  }
+
+  .reconciliation-actions button {
+    width: 100%;
+  }
+}

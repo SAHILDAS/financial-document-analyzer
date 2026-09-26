@@ -1,3 +1,6 @@
+import os
+
+os.environ["LLM_PROVIDER"] = "mock"
 import sys
 from pathlib import Path
 

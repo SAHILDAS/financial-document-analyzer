@@ -1333,5 +1333,508 @@
 
     }
 
+
+    <!-- ===================================================== -->
+    <!-- Salary + Bank Reconciliation -->
+    <!-- ===================================================== -->
+
+    <section class="card reconciliation-workspace">
+      <div class="section-heading">
+        <div>
+          <p class="section-eyebrow">Financial reconciliation</p>
+          <h2>Salary vs Bank Statement</h2>
+          <p class="muted">
+            Analyze a salary slip and bank statement together, then compare
+            the reported net salary against possible salary credits using
+            deterministic matching rules.
+          </p>
+        </div>
+
+        @if (hasReconciliationResult()) {
+          <span
+            class="validation-badge"
+            [class.valid]="reconciliationStatus === 'matched'"
+            [class.invalid]="reconciliationStatus !== 'matched'"
+          >
+            {{ getReconciliationStatusLabel(reconciliationStatus) }}
+          </span>
+        }
+      </div>
+
+      <div class="reconciliation-upload-grid">
+        <div class="reconciliation-upload-card">
+          <div class="section-heading compact">
+            <div>
+              <p class="section-eyebrow">Document A</p>
+              <h3>Salary Slip</h3>
+            </div>
+          </div>
+
+          <p class="muted">
+            Upload the salary slip containing the employee's reported net salary.
+          </p>
+
+          <label class="file-picker">
+            <span>Choose salary slip</span>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              (change)="onSalaryReconciliationFileSelected($event)"
+            />
+          </label>
+
+          @if (selectedSalaryFile(); as file) {
+            <div class="selected-file">
+              <div>
+                <strong>{{ file.name }}</strong>
+                <span>{{ (file.size / 1024 / 1024).toFixed(2) }} MB</span>
+              </div>
+            </div>
+          }
+
+          @if (salaryReconciliationAnalysis(); as salaryResult) {
+            @if (
+              salaryResult.success &&
+              salaryResult.data?.salary;
+              as salaryAnalysis
+            ) {
+              <div class="reconciliation-summary">
+                <div class="detail">
+                  <span>Employee</span>
+                  <strong>
+                    {{ salaryAnalysis.salary.employee.name || '—' }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Salary Month</span>
+                  <strong>
+                    {{ salaryAnalysis.salary.employee.salary_month || '—' }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Net Salary</span>
+                  <strong>
+                    {{ formatAmount(salaryAnalysis.salary.net_salary) }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Confidence</span>
+                  <strong>
+                    {{ formatPercentage(salaryAnalysis.confidence.score) }}
+                  </strong>
+                </div>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="reconciliation-upload-card">
+          <div class="section-heading compact">
+            <div>
+              <p class="section-eyebrow">Document B</p>
+              <h3>Bank Statement</h3>
+            </div>
+          </div>
+
+          <p class="muted">
+            Upload the bank statement containing the relevant salary credit.
+          </p>
+
+          <label class="file-picker">
+            <span>Choose bank statement</span>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              (change)="onBankReconciliationFileSelected($event)"
+            />
+          </label>
+
+          @if (selectedBankFile(); as file) {
+            <div class="selected-file">
+              <div>
+                <strong>{{ file.name }}</strong>
+                <span>{{ (file.size / 1024 / 1024).toFixed(2) }} MB</span>
+              </div>
+            </div>
+          }
+
+          @if (bankReconciliationAnalysis(); as bankResult) {
+            @if (
+              bankResult.success &&
+              bankResult.data?.bank;
+              as bankAnalysis
+            ) {
+              <div class="reconciliation-summary">
+                <div class="detail">
+                  <span>Account Holder</span>
+                  <strong>
+                    {{ bankAnalysis.statement.account.holder_name || '—' }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Statement Period</span>
+                  <strong>
+                    {{
+                      formatDate(
+                        bankAnalysis.statement.statement_period.from_date
+                      )
+                    }}
+                    —
+                    {{
+                      formatDate(
+                        bankAnalysis.statement.statement_period.to_date
+                      )
+                    }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Transactions</span>
+                  <strong>
+                    {{ bankAnalysis.statement.transactions.length }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Possible Salary Credits</span>
+                  <strong>
+                    {{ bankAnalysis.analysis.salary_credit_candidates.length }}
+                  </strong>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      @if (reconciliationError()) {
+        <div class="status error reconciliation-error">
+          <strong>Reconciliation Preparation Error</strong>
+          <p>{{ reconciliationError() }}</p>
+        </div>
+      }
+
+      <div class="reconciliation-actions">
+        <button
+          type="button"
+          class="primary-button"
+          [disabled]="
+            !selectedSalaryFile() ||
+            !selectedBankFile() ||
+            reconciling()
+          "
+          (click)="analyzeReconciliationDocuments()"
+        >
+          Analyze &amp; prepare reconciliation
+        </button>
+
+        @if (canReconcile()) {
+          <button
+            type="button"
+            class="secondary-button"
+            [disabled]="reconciling()"
+            (click)="reconcileDocuments()"
+          >
+            @if (reconciling()) {
+              Reconciling...
+            } @else {
+              Reconcile documents
+            }
+          </button>
+        }
+
+        @if (hasReconciliationResult()) {
+          <button
+            type="button"
+            class="secondary-button"
+            [disabled]="reconciling()"
+            (click)="clearReconciliation()"
+          >
+            Reset reconciliation
+          </button>
+        }
+      </div>
+
+      @if (salaryReconciliationAnalysis() && bankReconciliationAnalysis()) {
+        <div class="reconciliation-readiness">
+          <span class="status-dot"></span>
+          <span>
+            Both documents have been analyzed. Review the extracted values
+            above, then run reconciliation.
+          </span>
+        </div>
+      }
+
+      @if (reconciliation(); as result) {
+        <section class="reconciliation-result">
+          <div class="reconciliation-result-header">
+            <div>
+              <p class="section-eyebrow">Deterministic matching result</p>
+              <h3>{{ getReconciliationStatusLabel(result.status) }}</h3>
+              <p class="muted">{{ result.explanation }}</p>
+            </div>
+
+            <div
+              class="confidence-badge"
+              [class]="getCandidateScoreClass(result.confidence)"
+            >
+              <span>{{ formatPercentage(result.confidence) }}</span>
+              <small>Reconciliation confidence</small>
+            </div>
+          </div>
+
+          <div class="financial-grid reconciliation-metrics">
+            <div class="financial-item highlight">
+              <span>Salary Net Amount</span>
+              <strong>{{ formatAmount(result.salary_net_amount) }}</strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Candidate Transactions</span>
+              <strong>{{ result.candidates.length }}</strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Selected Candidate</span>
+              <strong>
+                @if (result.selected_candidate) {
+                  {{ formatAmount(result.selected_candidate.amount) }}
+                } @else {
+                  —
+                }
+              </strong>
+            </div>
+
+            <div class="financial-item">
+              <span>Status</span>
+              <strong>
+                {{ getReconciliationStatusLabel(result.status) }}
+              </strong>
+            </div>
+          </div>
+
+          @if (result.status === 'matched') {
+            <div class="success-banner">
+              <strong>Salary credit matched</strong>
+              <p>
+                The selected bank credit satisfies the current reconciliation
+                rules and exceeds the automatic-match confidence threshold.
+              </p>
+            </div>
+          } @else if (result.status === 'multiple_candidates') {
+            <div class="review-banner">
+              <strong>Multiple plausible salary credits found</strong>
+              <p>
+                More than one candidate met the automatic matching criteria.
+                Human review is recommended before treating the reconciliation
+                as final.
+              </p>
+            </div>
+          } @else if (result.status === 'needs_review') {
+            <div class="review-banner">
+              <strong>Human review recommended</strong>
+              <p>
+                A possible salary credit was found, but the available evidence
+                is not strong enough for an automatic reconciliation.
+              </p>
+            </div>
+          } @else {
+            <div class="review-banner">
+              <strong>No reliable salary credit match</strong>
+              <p>
+                No bank credit met the current candidate threshold for the
+                salary net amount.
+              </p>
+            </div>
+          }
+
+          @if (result.selected_candidate; as selected) {
+            <div class="card nested-card">
+              <div class="section-heading">
+                <div>
+                  <p class="section-eyebrow">Selected candidate</p>
+                  <h3>
+                    {{ formatDate(selected.transaction_date) }}
+                    ·
+                    {{ formatAmount(selected.amount) }}
+                  </h3>
+                </div>
+
+                <span
+                  class="score-badge"
+                  [class]="getCandidateScoreClass(selected.overall_score)"
+                >
+                  {{ formatPercentage(selected.overall_score) }}
+                </span>
+              </div>
+
+              <div class="details-grid">
+                <div class="detail">
+                  <span>Amount Score</span>
+                  <strong>{{ formatPercentage(selected.amount_score) }}</strong>
+                </div>
+
+                <div class="detail">
+                  <span>Date Score</span>
+                  <strong>{{ formatPercentage(selected.date_score) }}</strong>
+                </div>
+
+                <div class="detail">
+                  <span>Narration Score</span>
+                  <strong>
+                    {{ formatPercentage(selected.narration_score) }}
+                  </strong>
+                </div>
+
+                <div class="detail">
+                  <span>Periodicity Score</span>
+                  <strong>
+                    {{ formatPercentage(selected.periodicity_score) }}
+                  </strong>
+                </div>
+              </div>
+
+              <div class="reconciliation-narration">
+                <span>Narration</span>
+                <strong>{{ selected.narration }}</strong>
+              </div>
+
+              @if (selected.reasons.length > 0) {
+                <div class="confidence-reasons">
+                  <h4>Why this candidate was selected</h4>
+                  <ul>
+                    @for (reason of selected.reasons; track reason) {
+                      <li>{{ reason }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+            </div>
+          }
+
+          @if (result.candidates.length > 0) {
+            <div class="card nested-card">
+              <div class="section-heading">
+                <div>
+                  <p class="section-eyebrow">Candidate analysis</p>
+                  <h3>Possible salary credits</h3>
+                </div>
+
+                <span class="count-badge">
+                  {{ result.candidates.length }}
+                </span>
+              </div>
+
+              <div class="table-wrapper">
+                <table class="transaction-table reconciliation-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Narration</th>
+                      <th>Amount</th>
+                      <th>Amount Match</th>
+                      <th>Date Match</th>
+                      <th>Narration Match</th>
+                      <th>Overall</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    @for (
+                      candidate of result.candidates;
+                      track candidate.transaction_date +
+                        candidate.amount +
+                        candidate.narration
+                    ) {
+                      <tr
+                        [class.reconciliation-selected]="
+                          result.selected_candidate?.transaction_date ===
+                            candidate.transaction_date &&
+                          result.selected_candidate?.amount ===
+                            candidate.amount &&
+                          result.selected_candidate?.narration ===
+                            candidate.narration
+                        "
+                      >
+                        <td>{{ formatDate(candidate.transaction_date) }}</td>
+
+                        <td class="narration-cell">
+                          {{ candidate.narration }}
+                        </td>
+
+                        <td class="amount">
+                          {{ formatAmount(candidate.amount) }}
+                        </td>
+
+                        <td>
+                          <span
+                            class="score-badge"
+                            [class]="
+                              getCandidateScoreClass(candidate.amount_score)
+                            "
+                          >
+                            {{ formatPercentage(candidate.amount_score) }}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            class="score-badge"
+                            [class]="
+                              getCandidateScoreClass(candidate.date_score)
+                            "
+                          >
+                            {{ formatPercentage(candidate.date_score) }}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            class="score-badge"
+                            [class]="
+                              getCandidateScoreClass(candidate.narration_score)
+                            "
+                          >
+                            {{ formatPercentage(candidate.narration_score) }}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            class="score-badge"
+                            [class]="
+                              getCandidateScoreClass(candidate.overall_score)
+                            "
+                          >
+                            {{ formatPercentage(candidate.overall_score) }}
+                          </span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          } @else {
+            <div class="empty-state">
+              No candidate bank credits were identified for reconciliation.
+            </div>
+          }
+
+          <div class="reconciliation-method-note">
+            <strong>How this works:</strong>
+            reconciliation is deterministic. The system compares salary net
+            amount, transaction date proximity, narration similarity, and
+            periodicity. The LLM is not used to make the final reconciliation
+            decision.
+          </div>
+        </section>
+      }
+    </section>
+
   </section>
 </main>

@@ -7,6 +7,12 @@ import {
   HealthResponse,
 } from '../models/api-response.model';
 
+import {
+  ReconciliationRequest,
+  ReconciliationResponse,
+} from '../models/reconciliation.model';
+
+
 @Injectable({
   providedIn: 'root',
 })
@@ -31,4 +37,14 @@ export class ApiService {
       formData,
     );
   }
+
+  reconcileDocuments(
+	  request: ReconciliationRequest,
+	): Observable<ReconciliationResponse> {
+	  return this.http.post<ReconciliationResponse>(
+	    `${this.baseUrl}/documents/reconcile`,
+	    request,
+	  );
+	}
+
 }

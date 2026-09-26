@@ -107,22 +107,34 @@ def test_detects_net_salary_difference():
     assert result.net_difference == Decimal("1000")
 
 
-def test_missing_bonus_prevents_complete_earnings_calculation():
-    salary = create_salary(bonus=None)
+def test_missing_bonus_still_allows_available_earnings_calculation():
+    salary = create_salary(
+        bonus=None,
+        other="1000",
+        gross="66000",
+    )
 
     result = SalaryCalculator().calculate(salary)
 
-    assert result.can_calculate_earnings is False
-    assert result.calculated_earnings is None
+    assert result.can_calculate_earnings is True
+    assert result.calculated_earnings == Decimal("66000")
+    assert result.reported_gross == Decimal("66000")
+    assert result.earnings_difference == Decimal("0")
 
 
-def test_missing_other_earnings_prevents_complete_earnings_calculation():
-    salary = create_salary(other=None)
+def test_missing_other_earnings_still_allows_available_earnings_calculation():
+    salary = create_salary(
+        bonus="1000",
+        other=None,
+        gross="66000",
+    )
 
     result = SalaryCalculator().calculate(salary)
 
-    assert result.can_calculate_earnings is False
-    assert result.calculated_earnings is None
+    assert result.can_calculate_earnings is True
+    assert result.calculated_earnings == Decimal("66000")
+    assert result.reported_gross == Decimal("66000")
+    assert result.earnings_difference == Decimal("0")
 
 
 def test_net_calculation_does_not_require_individual_deductions():
@@ -136,3 +148,41 @@ def test_net_calculation_does_not_require_individual_deductions():
 
     assert result.can_calculate_net is True
     assert result.calculated_net == Decimal("59000")
+
+
+
+def test_calculates_gross_from_partial_realistic_earning_components():
+    salary = SalarySlip(
+        employee=SalaryEmployee(
+            name="Sanjib Das",
+            employee_id="Emp101",
+            employer="demo company 101",
+            salary_month="Sep 2026",
+        ),
+        earnings=SalaryEarnings(
+            basic=Decimal("45000"),
+            hra=Decimal("10000"),
+            allowances=None,
+            bonus=None,
+            other=Decimal("1000"),
+            gross=Decimal("56000"),
+        ),
+        deductions=SalaryDeductions(
+            pf=Decimal("4500"),
+            tds=Decimal("1000"),
+            total=Decimal("5500"),
+        ),
+        net_salary=Decimal("50500"),
+    )
+
+    result = SalaryCalculator().calculate(salary)
+
+    assert result.can_calculate_earnings is True
+    assert result.calculated_earnings == Decimal("56000")
+    assert result.reported_gross == Decimal("56000")
+    assert result.earnings_difference == Decimal("0")
+
+    assert result.can_calculate_net is True
+    assert result.calculated_net == Decimal("50500")
+    assert result.reported_net == Decimal("50500")
+    assert result.net_difference == Decimal("0")
