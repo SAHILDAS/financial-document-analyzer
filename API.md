@@ -1,48 +1,60 @@
-
-````markdown
 # Financial Document Analyzer — API Specification
 
 ## 1. Overview
 
 The Financial Document Analyzer exposes a REST API through the FastAPI backend.
 
-The API is responsible for:
+The API boundary is responsible for:
 
-- Document upload
-- File validation
-- Document processing
-- Document classification
-- Structured financial extraction
-- Validation
-- Financial analysis
-- Salary-bank reconciliation
 - Health monitoring
+- Document upload and ingestion
+- File validation
+- PDF text extraction
+- Image/scanned-PDF OCR
+- Automatic document classification
+- Structured salary extraction
+- Structured bank-statement extraction
+- Deterministic financial validation
+- Deterministic financial analysis
+- Salary-bank reconciliation
+- Explainable confidence and review signals
 
-The API is designed so that the Angular frontend does not need to know how OCR, LLM extraction, validation, or financial analysis are implemented internally.
+The Angular frontend does not need to know how OCR, LLM extraction, validation, financial analysis, or reconciliation are implemented internally.
+
+> **Architecture principle:** the LLM is an extraction component, not the financial source of truth. Extracted data is validated with typed schemas and deterministic application logic before financial conclusions are returned.
 
 ---
 
 # 2. API Architecture
 
-The high-level request flow is:
+The implemented architecture is a modular monolith:
 
 ```text
 Angular Frontend
        |
-       | HTTP
+       | HTTP / JSON / multipart
        v
 FastAPI REST API
        |
-       v
-Application Services
-       |
        +--> Ingestion
-       +--> Text Extraction
+       |
+       +--> Native PDF Text Extraction
+       |
        +--> OCR
+       |
        +--> Classification
-       +--> Extraction
-       +--> Validation
-       +--> Analysis
+       |
+       +--> Extraction Provider
+       |       |
+       |       +--> OpenAI structured output
+       |       +--> Mock provider
+       |
+       +--> Pydantic Schema Validation
+       |
+       +--> Salary Validation / Calculation / Confidence
+       |
+       +--> Bank Validation / Financial Analysis
+       |
        +--> Reconciliation
        |
        v
@@ -50,7 +62,9 @@ Structured API Response
        |
        v
 Angular Frontend
-````
+```
+
+Routes delegate business logic to backend services rather than implementing OCR, extraction, calculations, or reconciliation directly.
 
 ---
 
@@ -74,11 +88,19 @@ Therefore:
 http://127.0.0.1:8000/api
 ```
 
+The frontend development application currently runs separately, typically at:
+
+```text
+http://localhost:4200
+```
+
+The backend CORS configuration uses the configured frontend origin rather than embedding frontend logic in API services.
+
 ---
 
-# 4. API Documentation
+# 4. Interactive API Documentation
 
-FastAPI automatically exposes interactive API documentation.
+FastAPI exposes generated OpenAPI documentation.
 
 ## Swagger UI
 
@@ -92,27 +114,36 @@ http://127.0.0.1:8000/docs
 http://127.0.0.1:8000/redoc
 ```
 
-The generated OpenAPI specification is available at:
+## OpenAPI
 
 ```text
 http://127.0.0.1:8000/openapi.json
 ```
 
+The OpenAPI schema is generated from the actual FastAPI route and Pydantic models.
+
 ---
 
 # 5. Supported Documents
 
-The analyzer supports:
+The implemented ingestion pipeline accepts:
 
-| Format | Extension       | Purpose                          |
-| ------ | --------------- | -------------------------------- |
-| PDF    | `.pdf`          | Salary slips and bank statements |
-| JPEG   | `.jpg`, `.jpeg` | Salary slips and bank statements |
-| PNG    | `.png`          | Salary slips and bank statements |
+| Format | Extensions | Supported |
+|---|---|---|
+| PDF | `.pdf` | Yes |
+| JPEG | `.jpg`, `.jpeg` | Yes |
+| PNG | `.png` | Yes |
 
-Unsupported formats should be rejected before document processing begins.
+The supported document types are:
 
-Examples of unsupported formats:
+```text
+Salary Slip
+Bank Statement
+```
+
+Unsupported formats should be rejected during ingestion.
+
+Examples:
 
 ```text
 .txt
@@ -124,150 +155,91 @@ Examples of unsupported formats:
 .exe
 ```
 
----
-
-# 6. Document Types
-
-The classifier recognizes the following document categories:
-
-```text
-salary_slip
-bank_statement
-unknown
-```
-
-The classification response should contain:
-
-```text
-document_type
-confidence
-```
-
-Where possible, classification evidence/reason should also be returned.
+The API should not assume that a file is a valid financial document merely because its extension is supported.
 
 ---
 
-# 7. Common API Response Structure
+# 6. Document Processing Pipeline
 
-Successful document-processing responses use a common structure.
+The main processing endpoint follows this conceptual flow:
+
+```text
+Upload
+  |
+  v
+File Validation
+  |
+  v
+PDF Inspection / Native Text Extraction
+  |
+  +---- usable text ----> continue
+  |
+  +---- no usable text --> OCR
+  |
+  v
+Document Classification
+  |
+  +---- salary_slip ----> Salary Extraction
+  |
+  +---- bank_statement -> Bank Extraction
+  |
+  +---- unknown --------> classification result / review
+  |
+  v
+Pydantic Schema Validation
+  |
+  v
+Deterministic Financial Validation
+  |
+  v
+Financial Analysis
+  |
+  v
+Confidence
+  |
+  v
+Structured Response
+```
+
+Salary-bank reconciliation is a separate deterministic API operation because it requires both already-processed document results.
+
+---
+
+# 7. Common Response Conventions
+
+## 7.1 Successful document analysis
+
+A successful analysis response follows the application's document-analysis response model.
+
+Conceptually:
 
 ```json
 {
   "success": true,
   "document_id": "document-uuid",
   "document_type": "salary_slip",
-  "confidence": 0.92,
+  "confidence": 0.95,
   "data": {},
   "validation": {},
   "processing": {}
 }
 ```
 
----
+The exact nested `data`, `validation`, and `processing` structures depend on the detected document type and the actual response schemas.
 
-## 7.1 Response Fields
+## 7.2 Confidence
 
-### `success`
+Confidence is an implementation signal, not a statistical guarantee.
 
-Indicates whether the request was successfully processed.
+The current interpretation is:
 
-```text
-true
-false
-```
+| Score | Level |
+|---:|---|
+| `0.85–1.00` | High |
+| `0.65–0.84` | Medium |
+| `0.00–0.64` | Low |
 
----
-
-### `document_id`
-
-Unique identifier assigned to the processing request/document.
-
-Example:
-
-```text
-9f4b7f2e-7d1e-4d53-9d6a-5d5d0d1d1234
-```
-
----
-
-### `document_type`
-
-The detected document type.
-
-Possible values:
-
-```text
-salary_slip
-bank_statement
-unknown
-```
-
----
-
-### `confidence`
-
-Overall processing confidence.
-
-Example:
-
-```json
-{
-  "confidence": 0.92
-}
-```
-
-Confidence is an implementation signal and should not be interpreted as a statistical guarantee.
-
----
-
-### `data`
-
-Contains document-specific structured data.
-
-For a salary slip:
-
-```text
-SalarySlip
-```
-
-For a bank statement:
-
-```text
-BankStatement
-```
-
----
-
-### `validation`
-
-Contains deterministic validation results.
-
-Example:
-
-```json
-{
-  "is_valid": true,
-  "issues": []
-}
-```
-
----
-
-### `processing`
-
-Contains processing metadata.
-
-Example:
-
-```json
-{
-  "processing_time_ms": 1240,
-  "pages_processed": 2,
-  "ocr_used": false
-}
-```
-
-Sensitive document contents must not be included in processing metadata.
+Low-confidence or materially inconsistent results can require human review.
 
 ---
 
@@ -275,7 +247,7 @@ Sensitive document contents must not be included in processing metadata.
 
 ## GET `/api/health`
 
-Checks whether the backend is running.
+Checks whether the backend application is running.
 
 ### Request
 
@@ -299,11 +271,13 @@ curl http://127.0.0.1:8000/api/health
 }
 ```
 
-### Status Code
+### Status
 
 ```text
 200 OK
 ```
+
+This endpoint does not process financial documents.
 
 ---
 
@@ -329,7 +303,7 @@ GET /
 }
 ```
 
-### Status Code
+### Status
 
 ```text
 200 OK
@@ -341,39 +315,39 @@ GET /
 
 ## POST `/api/documents/analyze`
 
-Primary document-analysis endpoint.
+This is the primary end-to-end document analysis endpoint.
 
-This endpoint is intended to provide the complete processing pipeline:
+It accepts one supported document and performs:
 
 ```text
 Upload
   ↓
-File Validation
+Ingestion
   ↓
-Text Extraction / OCR
+Text extraction / OCR
   ↓
 Classification
   ↓
-Structured Extraction
+Structured extraction
   ↓
-Schema Validation
+Schema validation
   ↓
-Deterministic Validation
+Deterministic validation
   ↓
-Financial Analysis
-  ↓
-Reconciliation when applicable
+Financial analysis
   ↓
 Confidence
   ↓
-Response
+Structured response
 ```
+
+Reconciliation is **not automatically performed inside this endpoint**, because reconciliation requires both a salary analysis and a bank analysis. Use `/api/documents/reconcile` after both documents have been processed.
 
 ---
 
 ## 10.1 Request
 
-The request uses:
+Content type:
 
 ```text
 multipart/form-data
@@ -390,16 +364,105 @@ Example:
 ```bash
 curl -X POST \
   http://127.0.0.1:8000/api/documents/analyze \
-  -F "file=@samples/salary/salary_clean.pdf"
+  -F "file=@samples/salary/Payslip_Sanjib\ Das_September_2026.pdf"
+```
+
+For an image:
+
+```bash
+curl -X POST \
+  http://127.0.0.1:8000/api/documents/analyze \
+  -F "file=@samples/bank/HDFC\ Bank\ July\ 2025\ Statement.png"
 ```
 
 ---
 
-# 11. Salary Slip Endpoint
+# 11. Classification Behavior
+
+Classification happens after usable document text has been obtained.
+
+Current supported classifications are:
+
+```text
+salary_slip
+bank_statement
+unknown
+```
+
+The classifier uses document text signals and returns a classification confidence.
+
+A document should not be forced into a supported category when the evidence is insufficient.
+
+Conceptual unknown result:
+
+```json
+{
+  "document_type": "unknown",
+  "confidence": 0.32
+}
+```
+
+The actual analysis endpoint may return an appropriate application-level error when the document cannot proceed through the required processing pipeline.
+
+---
+
+# 12. Ingestion and OCR Behavior
+
+## 12.1 PDF
+
+For PDF files, the ingestion layer first inspects the PDF and attempts native text extraction.
+
+If the PDF contains usable text:
+
+```text
+PDF
+ ↓
+PyMuPDF
+ ↓
+Native text
+```
+
+If usable text is unavailable:
+
+```text
+PDF
+ ↓
+Page rendering
+ ↓
+Image
+ ↓
+Tesseract OCR
+ ↓
+Text
+```
+
+## 12.2 Images
+
+JPEG and PNG documents are processed through OCR.
+
+```text
+JPG / PNG
+   ↓
+Pillow
+   ↓
+Tesseract OCR
+   ↓
+Text
+```
+
+## 12.3 OCR quality
+
+The ingestion layer produces OCR/text-quality information used by downstream processing and confidence calculation.
+
+OCR quality is evidence about the extracted text quality; it is not a guarantee that every field was correctly recognized.
+
+---
+
+# 13. Salary Slip Endpoint
 
 ## POST `/api/documents/salary-slip`
 
-Processes a salary slip.
+Processes a salary slip through the salary-specific analysis flow.
 
 ### Request
 
@@ -419,66 +482,16 @@ Example:
 ```bash
 curl -X POST \
   http://127.0.0.1:8000/api/documents/salary-slip \
-  -F "file=@samples/salary/salary_clean.pdf"
+  -F "file=@samples/salary/Payslip_Sanjib\ Das_September_2026.pdf"
 ```
+
+The endpoint is intended for an input known to be a salary slip.
 
 ---
 
-## 11.1 Salary Response
+# 14. Salary Data Contract
 
-Example:
-
-```json
-{
-  "success": true,
-  "document_id": "document-uuid",
-  "document_type": "salary_slip",
-  "confidence": 0.94,
-  "data": {
-    "employee": {
-      "name": "Example Employee",
-      "employee_id": "EMP001",
-      "employer": "Example Technologies",
-      "salary_month": "August 2026",
-      "pan": "XXXXXXXXXX"
-    },
-    "earnings": {
-      "basic": 40000,
-      "hra": 15000,
-      "allowances": 10000,
-      "bonus": 0,
-      "other": 0,
-      "gross": 65000
-    },
-    "deductions": {
-      "pf": 4800,
-      "professional_tax": 0,
-      "tds": 1200,
-      "other": 0,
-      "total": 6000
-    },
-    "net_salary": 59000,
-    "bank_account": {
-      "account_number": "XXXXXX1234"
-    }
-  },
-  "validation": {
-    "is_valid": true,
-    "issues": []
-  },
-  "processing": {
-    "ocr_used": false
-  }
-}
-```
-
-Values in this example are synthetic.
-
----
-
-# 12. Salary Data Contract
-
-The salary extraction model contains:
+The structured salary model contains the following conceptual groups.
 
 ## Employee
 
@@ -511,27 +524,116 @@ other
 total
 ```
 
-## Net Salary
+## Net salary
 
 ```text
 net_salary
 ```
 
-## Bank Account
+## Bank account
 
 ```text
 account_number
 ```
 
-The bank account is optional because it may not appear on every salary slip.
+The bank account number is optional because it may not appear on every salary slip.
+
+Amounts are represented as decimal financial values rather than relying on floating-point arithmetic for financial calculations.
 
 ---
 
-# 13. Salary Validation
+# 15. Salary Extraction
 
-The API should expose validation results for salary arithmetic.
+The extraction layer uses a provider abstraction.
 
-Primary relationship:
+Current providers:
+
+```text
+MockLLMProvider
+OpenAIProvider
+```
+
+The configured provider is selected by application configuration.
+
+The OpenAI provider uses structured output constrained by the application's Pydantic-generated schema.
+
+The extraction process is:
+
+```text
+Document text
+      |
+      v
+Extraction Service
+      |
+      v
+LLM Provider
+      |
+      v
+Structured JSON
+      |
+      v
+Pydantic validation
+      |
+      v
+SalarySlip
+```
+
+The provider does not perform final salary calculations.
+
+---
+
+# 16. Salary Response
+
+A representative response contains structured salary data, validation, calculation, confidence, and processing information.
+
+Example values are synthetic:
+
+```json
+{
+  "success": true,
+  "document_id": "document-uuid",
+  "document_type": "salary_slip",
+  "confidence": 1.0,
+  "data": {
+    "employee": {
+      "name": "Sanjib Das",
+      "employee_id": "Emp101",
+      "employer": "DEMO COMPANY 101",
+      "salary_month": "Sep 2026",
+      "pan": "EZSPD1654L"
+    },
+    "earnings": {
+      "basic": 45000,
+      "hra": 10000,
+      "allowances": 1000,
+      "bonus": 0,
+      "other": 0,
+      "gross": 56000
+    },
+    "deductions": {
+      "pf": 4500,
+      "professional_tax": 0,
+      "tds": 1000,
+      "other": 0,
+      "total": 5500
+    },
+    "net_salary": 50500,
+    "bank_account": {
+      "account_number": "501234567890"
+    }
+  },
+  "validation": {},
+  "processing": {}
+}
+```
+
+Sensitive values in real responses should be handled according to the application's privacy and logging rules.
+
+---
+
+# 17. Salary Validation
+
+The primary deterministic salary relationship is:
 
 ```text
 Expected Net Salary
@@ -544,49 +646,84 @@ Total Deductions
 Example:
 
 ```text
-Gross Earnings     ₹65,000
-Total Deductions   ₹6,000
-Expected Net       ₹59,000
-Extracted Net      ₹59,000
+Gross Earnings       ₹56,000
+Total Deductions      ₹5,500
+Expected Net         ₹50,500
+Extracted Net        ₹50,500
+Difference                 ₹0
 ```
 
-Result:
+The application does not silently replace an extracted value to make the arithmetic pass.
 
-```json
-{
-  "is_valid": true,
-  "issues": []
-}
-```
+A mismatch is reported as a validation issue.
 
 ---
 
-## 13.1 Salary Validation Failure
+# 18. Salary Calculation
 
-Example:
+The salary calculator uses the available structured earning components rather than requiring every optional earning component to be present.
 
-```json
-{
-  "is_valid": false,
-  "issues": [
-    {
-      "code": "NET_SALARY_MISMATCH",
-      "severity": "error",
-      "message": "Gross salary minus total deductions does not match the extracted net salary."
-    }
-  ]
-}
+Conceptually:
+
+```text
+calculated_gross =
+    sum(non-null earning components)
 ```
 
-The system should report the discrepancy instead of silently changing extracted values.
+where applicable:
+
+```text
+basic
+hra
+allowances
+bonus
+other
+```
+
+Net calculation uses:
+
+```text
+calculated_net =
+    gross
+    -
+    total_deductions
+```
+
+A reported value and a calculated value are compared using deterministic tolerances.
+
+Financial calculations are not delegated to the LLM.
 
 ---
 
-# 14. Bank Statement Endpoint
+# 19. Salary Confidence
+
+Salary confidence can incorporate:
+
+```text
+Document/text quality
+Field completeness
+Validation errors
+Validation warnings
+Calculated-vs-reported consistency
+```
+
+The important distinction is:
+
+```text
+Extraction confidence
+        ≠
+Financial correctness
+```
+
+A document may have good OCR and still contain an internally inconsistent salary result.
+
+---
+
+# 20. Bank Statement Endpoint
 
 ## POST `/api/documents/bank-statement`
 
-Processes a bank statement.
+Processes a bank statement through the bank-specific analysis flow.
 
 ### Request
 
@@ -606,55 +743,12 @@ Example:
 ```bash
 curl -X POST \
   http://127.0.0.1:8000/api/documents/bank-statement \
-  -F "file=@samples/bank/bank_clean.pdf"
+  -F "file=@samples/bank/HDFC\ Bank\ July\ 2025\ Statement.png"
 ```
 
 ---
 
-# 15. Bank Statement Response
-
-Example:
-
-```json
-{
-  "success": true,
-  "document_id": "document-uuid",
-  "document_type": "bank_statement",
-  "confidence": 0.91,
-  "data": {
-    "account": {
-      "holder_name": "Example Employee",
-      "bank_name": "Example Bank",
-      "account_number": "XXXXXX1234",
-      "ifsc": "EXMP0001234"
-    },
-    "period": {
-      "start_date": "2026-08-01",
-      "end_date": "2026-08-31"
-    },
-    "balances": {
-      "opening": 50000,
-      "closing": 110000
-    },
-    "transactions": []
-  },
-  "validation": {
-    "is_valid": true,
-    "issues": []
-  },
-  "processing": {
-    "ocr_used": false
-  }
-}
-```
-
-Values in this example are synthetic.
-
----
-
-# 16. Bank Data Contract
-
-The bank statement contains:
+# 21. Bank Data Contract
 
 ## Account
 
@@ -665,18 +759,18 @@ account_number
 ifsc
 ```
 
-## Statement Period
+## Statement period
 
 ```text
-start_date
-end_date
+from_date
+to_date
 ```
 
 ## Balances
 
 ```text
-opening
-closing
+opening_balance
+closing_balance
 ```
 
 ## Transactions
@@ -693,23 +787,23 @@ balance
 
 ---
 
-# 17. Transaction Contract
+# 22. Bank Transaction Contract
 
 Example:
 
 ```json
 {
-  "date": "2026-08-31",
-  "narration": "SALARY AUG 2026",
-  "debit": 0,
-  "credit": 59000,
-  "balance": 109000
+  "date": "2026-09-10",
+  "narration": "NEFT CREDIT | DEMO COMPANY 101 SALARY",
+  "debit": null,
+  "credit": 50500,
+  "balance": 127000
 }
 ```
 
-A transaction must not contain both a debit and credit amount.
+A transaction is expected to represent either a debit or a credit.
 
-Invalid:
+Invalid conceptual examples include:
 
 ```json
 {
@@ -718,9 +812,7 @@ Invalid:
 }
 ```
 
-A transaction should also contain a non-zero debit or credit amount.
-
-Invalid:
+and:
 
 ```json
 {
@@ -729,29 +821,61 @@ Invalid:
 }
 ```
 
+The exact Pydantic validation behavior is defined by the implemented bank schemas and validators.
+
 ---
 
-# 18. Financial Analysis
+# 23. Bank Extraction and Normalization
 
-Bank processing should expose deterministic financial analysis.
+Bank extraction is particularly sensitive to differences between bank statement layouts.
 
-The analysis includes:
+The extraction layer normalizes common variations in:
+
+- Dates
+- Indian currency formatting
+- `₹`
+- `Rs`
+- `INR`
+- Comma-separated amounts
+- Common date representations
+
+For example:
+
+```text
+₹1,25,000
+Rs 125,000
+INR 125000
+```
+
+are normalized before deterministic financial analysis.
+
+The extraction prompt also requests machine-friendly date and numeric formats.
+
+---
+
+# 24. Bank Financial Analysis
+
+The deterministic bank analyzer produces:
 
 ```text
 total_credits
 total_debits
 average_monthly_credit
 large_transactions
-recurring_transactions
 salary_credit_candidates
+recurring_transactions
 emi_candidates
 ```
 
+These are application-level calculations and heuristics.
+
+The LLM is not responsible for calculating totals or deciding the final reconciliation result.
+
 ---
 
-# 19. Total Credits
+# 25. Total Credits
 
-Calculated as:
+Calculated deterministically as:
 
 ```text
 SUM(all credit transaction amounts)
@@ -760,20 +884,20 @@ SUM(all credit transaction amounts)
 Example:
 
 ```text
-₹59,000
+₹50,500
 ₹25,000
-₹10,000
+₹1,500
 
-Total Credits = ₹94,000
+Total Credits = ₹77,000
 ```
 
-This calculation is performed by application code.
+The value is calculated from the normalized transaction model.
 
 ---
 
-# 20. Total Debits
+# 26. Total Debits
 
-Calculated as:
+Calculated deterministically as:
 
 ```text
 SUM(all debit transaction amounts)
@@ -783,137 +907,143 @@ Example:
 
 ```text
 ₹20,000
-₹18,500
-₹5,000
+₹4,500
+₹3,000
 
-Total Debits = ₹43,500
+Total Debits = ₹27,500
 ```
-
-This calculation is deterministic.
 
 ---
 
-# 21. Large Transactions
+# 27. Average Monthly Credit
 
-Transactions greater than:
+The bank analysis exposes an average monthly credit metric.
+
+For a single-month statement, this is effectively the credit total for that analyzed period.
+
+For multi-month data, the implementation can aggregate credit totals by month before calculating the average.
+
+The metric is descriptive and should not be interpreted as guaranteed recurring income.
+
+---
+
+# 28. Large Transactions
+
+The current analyzer identifies transactions above:
 
 ```text
 ₹50,000
 ```
 
-are identified.
+The threshold is configurable in the analysis implementation.
 
 Example:
 
 ```json
 {
-  "date": "2026-08-15",
-  "narration": "NEFT TRANSFER",
-  "amount": 75000,
+  "date": "2026-09-10",
+  "narration": "NEFT CREDIT | DEMO COMPANY 101 SALARY",
+  "amount": 50500,
   "transaction_type": "credit"
 }
 ```
 
-The threshold is an application requirement and should be configurable.
+The threshold is a prototype/application rule, not a universal banking standard.
 
 ---
 
-# 22. Recurring Transactions
+# 29. Salary Credit Candidates
 
-Potential recurring transactions are identified using deterministic heuristics.
+Potential salary credits are identified using deterministic signals such as:
 
-Signals may include:
+```text
+Credit transaction
+Amount
+Salary-related narration keywords
+Employer/name similarity where available
+Date/statement-period proximity
+```
+
+A candidate contains evidence and a score.
+
+Example:
+
+```json
+{
+  "date": "2026-09-10",
+  "narration": "NEFT CREDIT | DEMO COMPANY 101 SALARY",
+  "amount": 50500,
+  "score": 1.0,
+  "reasons": [
+    "Credit transaction contains a salary-related indicator."
+  ]
+}
+```
+
+A salary-credit candidate is not treated as proof of salary income.
+
+---
+
+# 30. Recurring Transactions
+
+Potential recurring transactions are identified through deterministic heuristics such as:
 
 ```text
 Normalized narration
 Similar transaction amounts
 Repeated occurrences
 Approximate time intervals
-Monthly periodicity
+Periodic behavior
 ```
+
+The output describes a pattern rather than asserting certainty.
 
 Example:
 
 ```json
 {
-  "narration_pattern": "ABC FINANCE",
-  "average_amount": 18500,
+  "narration_pattern": "HOME LOAN",
+  "average_amount": 35000,
   "occurrence_count": 3,
   "likely_frequency": "monthly"
 }
 ```
 
-The system should describe recurring transactions as patterns rather than definitive classifications.
+The exact result depends on the transactions available in the statement.
 
 ---
 
-# 23. Salary Credit Candidates
+# 31. EMI / Loan Candidates
 
-The API can identify bank transactions that are potential salary credits.
-
-Possible signals:
-
-```text
-Amount similarity
-Salary-related narration
-Employer-name similarity
-Recurring monthly pattern
-Date proximity
-Credit transaction type
-```
-
-Example:
-
-```json
-{
-  "date": "2026-08-31",
-  "narration": "SALARY AUG 2026",
-  "amount": 59000,
-  "score": 0.94,
-  "reasons": [
-    "Amount closely matches salary net amount.",
-    "Narration contains a salary-related keyword.",
-    "Transaction occurs within the expected salary period."
-  ]
-}
-```
-
-A candidate is not treated as proof of salary income.
-
----
-
-# 24. EMI / Loan Candidates
-
-Potential EMI or loan transactions can be identified using signals such as:
+Potential EMI or loan transactions use signals including:
 
 ```text
 Recurring debit
 Similar amount
 Monthly periodicity
-EMI keyword
-Loan keyword
+EMI keywords
+Loan keywords
 NACH
 ECS
-Lender name
+Lender-related narration
 ```
 
 Example:
 
 ```json
 {
-  "date": "2026-08-05",
-  "narration": "ABC FINANCE EMI",
-  "amount": 18500,
-  "score": 0.88,
+  "date": "2025-07-05",
+  "narration": "HOME LOAN EMI",
+  "amount": 35000,
+  "score": 0.9,
   "reasons": [
-    "Recurring monthly debit detected.",
-    "Narration contains an EMI-related keyword.",
-    "Transaction amount is consistent across occurrences."
+    "Recurring debit pattern detected.",
+    "Narration contains an EMI-related indicator."
   ]
 }
 ```
 
-The API should use terms such as:
+The API uses terms such as:
 
 ```text
 likely
@@ -922,93 +1052,89 @@ candidate
 indicator
 ```
 
-rather than representing a heuristic classification as definitive.
+rather than presenting heuristic classification as a definitive financial fact.
 
 ---
 
-# 25. Reconciliation Endpoint
+# 32. Reconciliation Endpoint
 
 ## POST `/api/documents/reconcile`
 
-Reconciles a salary net amount against bank transactions.
+Reconciles a salary analysis against a bank statement analysis.
 
-The reconciliation process considers:
+Unlike the document-upload endpoints, this endpoint receives already structured salary and bank analysis results.
+
+The implemented request model is:
 
 ```text
-Amount
-Date
-Narration
-Periodicity
+ReconciliationRequest
+    |
+    +--> salary: SalaryAnalysisResult
+    |
+    +--> bank: BankAnalysisResult
 ```
+
+This avoids re-uploading the same documents and keeps reconciliation separate from document extraction.
 
 ---
 
-# 26. Reconciliation Request
+# 33. Reconciliation Request
 
-The final request contract will be implemented according to the backend service design.
-
-Conceptually:
+Conceptual structure:
 
 ```json
 {
-  "salary_net_amount": 59000,
-  "salary_month": "August 2026",
-  "employer": "Example Technologies",
-  "transactions": []
+  "salary": {
+    "...": "SalaryAnalysisResult"
+  },
+  "bank": {
+    "...": "BankAnalysisResult"
+  }
 }
 ```
 
-The request may alternatively reference previously processed documents when document persistence is introduced.
+The actual request must conform to the backend Pydantic schemas.
+
+The salary object supplies the salary slip and its deterministic analysis.
+
+The bank object supplies the bank statement and its deterministic financial analysis.
 
 ---
 
-# 27. Reconciliation Candidate
+# 34. Reconciliation Algorithm
 
-Each candidate contains:
+The reconciliation service is deterministic and does not call the LLM.
+
+The process is:
 
 ```text
-transaction_date
-amount
-narration
-
-amount_score
-date_score
-narration_score
-periodicity_score
-
-overall_score
-
-reasons
+Salary net amount
+       |
+       v
+Bank statement transactions
+       |
+       v
+Keep credit transactions
+       |
+       v
+Prefer transactions in salary month
+       |
+       v
+Score candidates
+       |
+       +--> Amount
+       +--> Date
+       +--> Narration
+       +--> Periodicity
+       |
+       v
+Apply decision thresholds
+       |
+       v
+Matched / Multiple / No Match / Needs Review
 ```
 
-Example:
-
-```json
-{
-  "transaction_date": "2026-08-31",
-  "amount": 59000,
-  "narration": "SALARY AUG 2026",
-
-  "amount_score": 1.0,
-  "date_score": 0.95,
-  "narration_score": 0.90,
-  "periodicity_score": 0.85,
-
-  "overall_score": 0.95,
-
-  "reasons": [
-    "Exact salary amount match.",
-    "Transaction date is within the configured tolerance.",
-    "Narration contains a salary-related indicator."
-  ]
-}
-```
-
----
-
-# 28. Reconciliation Scoring
-
-The conceptual prototype weighting is:
+Current conceptual weights:
 
 ```text
 Amount        50%
@@ -1017,7 +1143,7 @@ Narration     15%
 Periodicity   10%
 ```
 
-The formula is conceptually:
+Formula:
 
 ```text
 overall_score =
@@ -1027,13 +1153,132 @@ overall_score =
   + periodicity_score * 0.10
 ```
 
-These weights are implementation choices for this prototype and are not intended to represent a universal financial standard.
+These weights are prototype implementation choices, not a universal financial standard.
 
 ---
 
-# 29. Reconciliation Status
+# 35. Reconciliation Amount Scoring
 
-Possible results:
+The current amount scoring uses deterministic tolerance bands.
+
+Conceptually:
+
+| Difference | Score |
+|---:|---:|
+| ≤ ₹1 | 1.00 |
+| ≤ 2% | 0.90 |
+| ≤ 5% | 0.70 |
+| ≤ 10% | 0.40 |
+| > 10% | 0.00 |
+
+An important safety rule prevents a materially different amount from becoming an automatic match solely because date and narration signals are strong.
+
+For example:
+
+```text
+Salary net:      ₹50,500
+Bank credit:     ₹48,500
+```
+
+This can produce a possible candidate but requires review rather than being silently promoted to a confirmed match.
+
+---
+
+# 36. Reconciliation Date Scoring
+
+The service uses salary-period/date proximity.
+
+The current implementation uses a configured date tolerance of approximately:
+
+```text
+7 days
+```
+
+with stronger evidence for dates closer to the expected salary period.
+
+The exact score is deterministic and is included in the candidate output.
+
+---
+
+# 37. Reconciliation Narration Scoring
+
+Narration evidence considers salary/employer-related signals.
+
+Examples:
+
+```text
+SALARY
+PAYROLL
+DEMO COMPANY 101
+EMPLOYER NAME
+```
+
+The result is represented as a score plus human-readable reasons.
+
+Narration similarity is supporting evidence; it does not override a material amount mismatch.
+
+---
+
+# 38. Reconciliation Periodicity Scoring
+
+Periodicity provides supporting evidence based on transaction timing/pattern information.
+
+It is intentionally weighted less than amount and date:
+
+```text
+Amount        50%
+Date          25%
+Narration     15%
+Periodicity   10%
+```
+
+This prevents a recurring pattern alone from becoming proof of a salary match.
+
+---
+
+# 39. Reconciliation Candidate Contract
+
+Each candidate contains:
+
+```text
+transaction_date
+amount
+narration
+amount_score
+date_score
+narration_score
+periodicity_score
+overall_score
+reasons
+```
+
+Example:
+
+```json
+{
+  "transaction_date": "2026-09-10",
+  "amount": "50500.00",
+  "narration": "NEFT CREDIT | DEMO COMPANY 101 SALARY",
+  "amount_score": 1.0,
+  "date_score": 1.0,
+  "narration_score": 1.0,
+  "periodicity_score": 0.5,
+  "overall_score": 0.95,
+  "reasons": [
+    "Bank credit matches the salary net amount.",
+    "Transaction date is within the configured salary-period tolerance.",
+    "Narration contains salary/employer-related evidence."
+  ]
+}
+```
+
+Amounts are serialized as strings in the API representation because the backend uses `Decimal` for financial values.
+
+---
+
+# 40. Reconciliation Status
+
+The API supports four decision states:
 
 ```text
 matched
@@ -1042,103 +1287,123 @@ no_match
 needs_review
 ```
 
----
-
 ## `matched`
 
-A candidate has sufficient evidence to be considered the selected match.
-
----
+A candidate has sufficient evidence for automatic selection under the configured rules.
 
 ## `multiple_candidates`
 
-Multiple transactions have comparable evidence.
-
-The system should expose the candidates instead of arbitrarily hiding them.
-
----
+Multiple high-scoring candidates are sufficiently comparable that the system does not silently choose one.
 
 ## `no_match`
 
-No bank transaction meets the configured matching criteria.
-
----
+No candidate reaches the minimum candidate threshold.
 
 ## `needs_review`
 
-The evidence is insufficient or ambiguous for automatic processing.
+A possible candidate exists, but the evidence is insufficient or contains a material ambiguity, such as an amount mismatch.
 
 ---
 
-# 30. Reconciliation Response
+# 41. Reconciliation Response
 
-Example:
+The implemented response model is:
 
 ```json
 {
-  "status": "matched",
-  "salary_net_amount": 59000,
-  "candidates": [],
-  "selected_candidate": {
-    "transaction_date": "2026-08-31",
-    "amount": 59000,
-    "narration": "SALARY AUG 2026",
-    "amount_score": 1.0,
-    "date_score": 0.95,
-    "narration_score": 0.90,
-    "periodicity_score": 0.85,
-    "overall_score": 0.95,
-    "reasons": [
-      "Exact salary amount match.",
-      "Transaction date is within the configured tolerance."
-    ]
+  "success": true,
+  "result": {
+    "status": "matched",
+    "salary_net_amount": "50500.00",
+    "candidates": [],
+    "selected_candidate": {
+      "transaction_date": "2026-09-10",
+      "amount": "50500.00",
+      "narration": "NEFT CREDIT | DEMO COMPANY 101 SALARY",
+      "amount_score": 1.0,
+      "date_score": 1.0,
+      "narration_score": 1.0,
+      "periodicity_score": 0.5,
+      "overall_score": 0.95,
+      "reasons": [
+        "Bank credit matches the salary net amount."
+      ]
+    },
+    "confidence": 0.95,
+    "explanation": "Bank credit of ₹50500.00 matches the salary net amount of ₹50500.00. Overall reconciliation score is 0.95."
   },
-  "confidence": 0.95,
-  "explanation": "The selected bank credit closely matches the salary net amount and expected salary period."
+  "error": null
 }
 ```
 
-Values are illustrative and synthetic.
+The exact reasons list depends on the candidate evidence.
 
----
+For unsuccessful application-level responses:
 
-# 31. Confidence
-
-Confidence is an implementation signal.
-
-Suggested interpretation:
-
-| Range     | Level  |
-| --------- | ------ |
-| 0.85–1.00 | High   |
-| 0.65–0.84 | Medium |
-| 0.00–0.64 | Low    |
-
-Confidence may incorporate:
-
-```text
-Classification confidence
-Extraction completeness
-Field-level confidence
-Schema validity
-Cross-field validation
-Financial validation
-Reconciliation evidence
-```
-
-A low-confidence result may result in:
-
-```text
-needs_review
+```json
+{
+  "success": false,
+  "result": null,
+  "error": "..."
+}
 ```
 
 ---
 
-# 32. Validation Response
+# 42. Reconciliation Thresholds
 
-Validation should be structured.
+The current reconciliation service uses deterministic thresholds approximately as follows:
 
-Example:
+```text
+Candidate threshold     0.50
+Review threshold         0.65
+Match threshold          0.80
+Date tolerance           7 days
+Strong date proximity    3 days
+```
+
+Multiple-candidate handling is applied when multiple high-quality candidates are sufficiently close in overall score.
+
+These are configurable prototype rules, not financial-industry standards.
+
+---
+
+# 43. Reconciliation Confidence
+
+The reconciliation confidence is derived from the selected/best candidate evidence.
+
+A high score does not mean that the bank has legally or independently verified the source of funds.
+
+For example:
+
+```text
+confidence = 0.95
+```
+
+means the deterministic reconciliation rules found strong evidence for the candidate.
+
+It does not mean:
+
+```text
+95% probability that the transaction is definitely salary.
+```
+
+---
+
+# 44. Validation Response
+
+Validation results are structured rather than returned as arbitrary text.
+
+Conceptually:
+
+```json
+{
+  "is_valid": true,
+  "issues": []
+}
+```
+
+or:
 
 ```json
 {
@@ -1147,18 +1412,20 @@ Example:
     {
       "code": "NET_SALARY_MISMATCH",
       "severity": "error",
-      "message": "Gross salary minus total deductions does not match net salary.",
+      "message": "Gross salary minus total deductions does not match the extracted net salary.",
       "field": "net_salary"
     }
   ]
 }
 ```
 
+The system reports discrepancies instead of silently changing extracted values.
+
 ---
 
-# 33. Validation Issue
+# 45. Validation Issues
 
-A validation issue may contain:
+A validation issue can contain:
 
 ```text
 code
@@ -1167,7 +1434,7 @@ message
 field
 ```
 
-Possible severity values:
+Typical severity values:
 
 ```text
 info
@@ -1175,7 +1442,7 @@ warning
 error
 ```
 
-Examples:
+Examples relevant to the current processing model include:
 
 ```text
 MISSING_NET_SALARY
@@ -1186,277 +1453,102 @@ MISSING_TRANSACTION_DATE
 INVALID_STATEMENT_PERIOD
 ```
 
+The exact issue set is determined by the implemented validators.
+
 ---
 
-# 34. Processing Metadata
+# 46. Error Handling
 
-Processing metadata describes how the document was processed.
+The API converts expected processing failures into safe application-level responses.
 
-Potential fields:
+Important categories include:
 
 ```text
-processing_time_ms
-pages_processed
-ocr_used
-classification_provider
-extraction_provider
+Unsupported file
+Invalid file
+Unreadable document
+Text extraction failure
+OCR failure
+Unknown document
+LLM/provider failure
+Structured extraction failure
+Schema validation failure
+Financial validation failure
+Analysis failure
+Reconciliation failure
+Unexpected internal error
 ```
 
-Example:
+The frontend should display a user-safe message rather than a Python stack trace.
 
-```json
-{
-  "processing_time_ms": 2380,
-  "pages_processed": 3,
-  "ocr_used": true,
-  "classification_provider": "llm",
-  "extraction_provider": "llm"
-}
-```
-
-Sensitive document contents must not be included.
+Provider credentials and raw provider responses must never be returned to the client.
 
 ---
 
-# 35. Error Response Contract
+# 47. HTTP Status Behavior
 
-All expected API errors should use a structured response.
+The implemented application uses HTTP status codes appropriate to the route and failure category.
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "UNSUPPORTED_FILE_TYPE",
-    "message": "The uploaded file type is not supported."
-  }
-}
-```
+Typical categories are:
 
-The client should use the error code for programmatic handling and the message for user-facing display.
+| Status | Meaning |
+|---:|---|
+| `200` | Successful processing |
+| `400` | Invalid input / processing request rejected |
+| `422` | Request/schema validation failure |
+| `500` | Unexpected server-side failure |
 
----
+Additional status codes may be introduced as the API evolves.
 
-# 36. Error Codes
-
-Initial error codes include:
-
-```text
-UNSUPPORTED_FILE_TYPE
-FILE_TOO_LARGE
-INVALID_FILE
-CORRUPTED_DOCUMENT
-PASSWORD_PROTECTED_DOCUMENT
-DOCUMENT_UNREADABLE
-
-TEXT_EXTRACTION_FAILED
-OCR_FAILED
-CLASSIFICATION_FAILED
-EXTRACTION_FAILED
-
-INVALID_EXTRACTED_DATA
-VALIDATION_FAILED
-ANALYSIS_FAILED
-RECONCILIATION_FAILED
-
-DOCUMENT_TYPE_UNKNOWN
-NO_TRANSACTIONS_FOUND
-
-LLM_PROVIDER_ERROR
-OCR_PROVIDER_ERROR
-
-INTERNAL_ERROR
-```
-
-Additional codes may be introduced as implementation progresses.
+The application should not claim a status mapping that is not implemented by the current route.
 
 ---
 
-# 37. HTTP Status Codes
+# 48. File Size and File Validation
 
-The API should use conventional HTTP status codes.
+The ingestion configuration includes a maximum file-size setting.
 
-| Status | Meaning                                     |
-| ------ | ------------------------------------------- |
-| 200    | Successful processing                       |
-| 201    | Resource created where applicable           |
-| 400    | Invalid request                             |
-| 413    | File too large                              |
-| 415    | Unsupported media type                      |
-| 422    | Request/schema validation failure           |
-| 500    | Unexpected server error                     |
-| 502    | External provider failure where appropriate |
-| 503    | Service temporarily unavailable             |
-
-The exact mapping may evolve as implementation progresses.
-
----
-
-# 38. File Validation Rules
-
-Before processing, the API should validate:
-
-```text
-File exists
-File can be read
-File type is supported
-File size is within limit
-File structure is valid
-```
-
-The configured default file-size limit is:
+Current configured default:
 
 ```text
 20 MB
 ```
 
-The limit is configurable through:
+Configuration key:
 
 ```text
 MAX_FILE_SIZE_MB
 ```
 
----
+Before document processing, the ingestion layer validates the uploaded file and supported format.
 
-# 39. OCR Behavior
-
-OCR should be used when:
-
-```text
-PDF has no usable selectable text
-```
-
-or:
-
-```text
-Input is an image
-```
-
-The API should expose whether OCR was used through processing metadata where appropriate.
-
-Example:
-
-```json
-{
-  "ocr_used": true
-}
-```
+The file lifecycle should remain temporary for the prototype rather than creating permanent document storage.
 
 ---
 
-# 40. Classification Behavior
+# 49. Document ID
 
-Classification should happen after usable text has been obtained.
-
-```text
-Document
-   |
-   v
-Text / OCR
-   |
-   v
-Classification
-```
-
-Unknown documents should not be forced into a supported category.
-
-Example:
-
-```json
-{
-  "success": true,
-  "document_type": "unknown",
-  "confidence": 0.32
-}
-```
-
-The application can then inform the user that the document is unsupported or could not be confidently classified.
-
----
-
-# 41. Idempotency and Duplicate Processing
-
-The prototype does not require a persistent idempotency layer.
-
-Future production implementations may introduce:
-
-```text
-request_id
-idempotency_key
-document_hash
-```
-
-to avoid accidentally processing the same document multiple times.
-
----
-
-# 42. Document Identification
-
-Each processing operation should have a unique document identifier.
-
-Example:
-
-```text
-document_id = UUID
-```
+Processing operations use a unique document identifier where provided by the document analysis response.
 
 The identifier is useful for:
 
-* Correlating logs.
-* Tracking processing.
-* Connecting API responses.
-* Future persistence.
-* Future audit trails.
+```text
+Log correlation
+Processing correlation
+API responses
+Future persistence
+Future audit trails
+```
 
 Sensitive document contents should never be used as identifiers.
 
 ---
 
-# 43. Pagination
+# 50. Authentication
 
-Bank statements may contain a large number of transactions.
+Authentication and authorization are outside the minimum prototype scope.
 
-Future API responses should support pagination where transaction volume requires it.
-
-Conceptual parameters:
-
-```text
-page
-page_size
-```
-
-or:
-
-```text
-offset
-limit
-```
-
-The initial prototype may return transactions in a single structured response if the sample data remains within manageable limits.
-
----
-
-# 44. Sorting and Filtering
-
-Future transaction APIs may support:
-
-```text
-date_from
-date_to
-transaction_type
-min_amount
-max_amount
-search
-```
-
-These capabilities are not required for the initial processing endpoint unless transaction volume requires them.
-
----
-
-# 45. Authentication
-
-Authentication is outside the minimum prototype scope.
-
-A production deployment should introduce:
+A production deployment handling real financial documents should introduce:
 
 ```text
 Authentication
@@ -1465,159 +1557,293 @@ Role-based access control
 Audit logging
 ```
 
-before processing real financial documents.
+before exposing the system to untrusted users.
 
 ---
 
-# 46. CORS
+# 51. CORS
 
-During local development, the Angular frontend runs on:
+The frontend and backend run on separate local origins during development.
+
+Typical development configuration:
 
 ```text
+Frontend:
 http://localhost:4200
-```
 
-while FastAPI runs on:
-
-```text
+Backend:
 http://127.0.0.1:8000
 ```
 
-The backend should explicitly allow the configured frontend origin.
-
-The allowed frontend URL should come from:
+The backend should allow the configured frontend origin through:
 
 ```text
 FRONTEND_URL
 ```
 
-rather than being hard-coded throughout the application.
+rather than scattering hard-coded origins through the application.
 
 ---
 
-# 47. Security Requirements
+# 52. Security and Sensitive Data
 
-The API must not expose sensitive information through:
-
-* Error messages.
-* Logs.
-* Debug responses.
-* Processing metadata.
-* Exception traces.
-
-Sensitive fields include:
+Financial documents can contain:
 
 ```text
 PAN
-Bank account number
+Bank account numbers
+IFSC
 Salary information
 Transaction information
 Raw OCR text
 Uploaded document contents
 ```
 
+These values must not be unnecessarily exposed through:
+
+```text
+Logs
+Exception traces
+Debug output
+Processing metadata
+Provider errors
+```
+
+API responses should return only the structured information required by the client.
+
 ---
 
-# 48. API Logging
+# 53. API Logging
 
-API logs should contain operational metadata such as:
+Operational logs may contain:
 
 ```text
 request_id
 document_id
 endpoint
-processing_time
-document_type
+processing time
+document type
 status
-error_code
+error code
 ```
 
 They should not contain:
 
 ```text
 PAN
-Full account number
-Raw document content
-Full OCR output
+Full bank account number
+Raw document contents
+Full OCR text
 Complete transaction payloads
 LLM API keys
+Raw provider responses
 ```
+
+This separation is particularly important because the application processes financial documents.
 
 ---
 
-# 49. External AI Providers
+# 54. External LLM Provider
 
-The extraction layer may communicate with an external LLM provider.
-
-The API architecture therefore treats provider communication as an internal service concern.
+The extraction architecture separates provider-specific code from the API layer.
 
 ```text
-FastAPI
-   |
-   v
+FastAPI Route
+     |
+     v
 Extraction Service
+     |
+     v
+LLMProvider abstraction
+     |
+     +--> MockLLMProvider
+     |
+     +--> OpenAIProvider
+```
+
+The API route does not directly contain OpenAI SDK calls.
+
+This allows deterministic tests to use the mock provider without making external API requests.
+
+---
+
+# 55. Structured LLM Output
+
+The OpenAI extraction provider uses structured output rather than asking the model for free-form JSON.
+
+The flow is:
+
+```text
+Pydantic model
+      |
+      v
+JSON schema normalization
+      |
+      v
+Strict structured-output schema
+      |
+      v
+OpenAI Responses API
+      |
+      v
+Structured JSON
+      |
+      v
+Pydantic model validation
+```
+
+The schema preparation removes unsupported schema constructs where necessary, including regex patterns that are not accepted by the structured-output contract.
+
+This is a provider integration concern and is intentionally hidden behind the provider abstraction.
+
+---
+
+# 56. Deterministic Processing Boundary
+
+The API intentionally separates probabilistic extraction from deterministic financial processing.
+
+```text
+Document
    |
    v
-LLM Provider
+OCR / Text
+   |
+   v
+LLM Extraction
+   |
+   v
+Structured Data
+   |
+   v
+Pydantic Validation
+   |
+   v
+Deterministic Validation
+   |
+   v
+Financial Analysis
+   |
+   v
+Reconciliation
 ```
 
-The API layer should not directly contain provider-specific code.
+The LLM does not calculate:
+
+```text
+Gross salary
+Net salary arithmetic
+Total bank credits
+Total bank debits
+Large-transaction threshold
+Reconciliation score
+Final reconciliation status
+```
+
+These are application responsibilities.
 
 ---
 
-# 50. Provider Failures
+# 57. Frontend API Consumption
 
-External AI/OCR failures should become safe application errors.
+The Angular frontend uses a centralized API service.
 
-Example:
+Current client operations include:
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "LLM_PROVIDER_ERROR",
-    "message": "The document could not be processed by the extraction service."
-  }
-}
+```text
+health()
+analyzeDocument(file)
+reconcileDocuments(request)
 ```
 
-Provider credentials and raw provider responses must not be exposed to the frontend.
+The frontend submits documents as multipart uploads and sends structured reconciliation data as JSON.
+
+The frontend maps backend response models into UI state and displays:
+
+```text
+Document type
+Confidence
+Extracted fields
+Validation
+Financial analysis
+Reconciliation status
+Candidate scores
+Human-review signals
+```
 
 ---
 
-# 51. API Processing Lifecycle
+# 58. Reconciliation Frontend Flow
 
-A typical request moves through:
+The Angular reconciliation workspace follows:
+
+```text
+Upload Salary Slip
+       |
+       v
+Analyze Salary
+       |
+       +----------------+
+                        |
+Upload Bank Statement   |
+       |                |
+       v                |
+Analyze Bank            |
+       |                |
+       +-------+--------+
+               |
+               v
+        Reconcile Documents
+               |
+               v
+        Reconciliation Result
+               |
+       +-------+--------+--------+
+       |                |        |
+    Matched       Multiple   Needs Review
+       |          Candidates     |
+       |                |        |
+       +----------------+--------+
+                        |
+                        v
+                    No Match
+```
+
+The UI intentionally exposes candidate evidence instead of hiding ambiguity.
+
+---
+
+# 59. API Processing Lifecycle
+
+A conceptual request lifecycle is:
 
 ```text
 RECEIVED
-    |
-    v
+   |
+   v
 VALIDATING
-    |
-    v
+   |
+   v
 EXTRACTING_TEXT
-    |
-    v
+   |
+   v
 CLASSIFYING
-    |
-    v
+   |
+   v
 EXTRACTING_DATA
-    |
-    v
+   |
+   v
 VALIDATING_DATA
-    |
-    v
+   |
+   v
 ANALYZING
-    |
-    v
-RECONCILING
-    |
-    v
+   |
+   v
 COMPLETED
 ```
 
-Possible terminal states:
+Reconciliation is a separate operation after both document analyses are available.
+
+Possible application-level outcomes include:
 
 ```text
 COMPLETED
@@ -1627,11 +1853,10 @@ NEEDS_REVIEW
 
 ---
 
-# 52. Salary Processing API Flow
+# 60. Salary API Flow
 
 ```mermaid
 sequenceDiagram
-
     participant Client
     participant API
     participant Ingestion
@@ -1639,33 +1864,30 @@ sequenceDiagram
     participant Classifier
     participant Extractor
     participant Validator
+    participant Analyzer
 
     Client->>API: Upload salary document
     API->>Ingestion: Validate file
     Ingestion-->>API: Valid document
-
     API->>OCR: Extract text if required
     OCR-->>API: Document text
-
     API->>Classifier: Classify document
     Classifier-->>API: salary_slip
-
     API->>Extractor: Extract salary fields
     Extractor-->>API: Structured salary data
-
     API->>Validator: Validate salary
     Validator-->>API: Validation result
-
+    API->>Analyzer: Calculate + score confidence
+    Analyzer-->>API: Salary analysis
     API-->>Client: Salary analysis response
 ```
 
 ---
 
-# 53. Bank Processing API Flow
+# 61. Bank API Flow
 
 ```mermaid
 sequenceDiagram
-
     participant Client
     participant API
     participant Ingestion
@@ -1678,316 +1900,506 @@ sequenceDiagram
     Client->>API: Upload bank statement
     API->>Ingestion: Validate file
     Ingestion-->>API: Valid document
-
     API->>OCR: Extract text if required
     OCR-->>API: Document text
-
     API->>Classifier: Classify document
     Classifier-->>API: bank_statement
-
     API->>Extractor: Extract account + transactions
     Extractor-->>API: Structured bank data
-
-    API->>Validator: Validate transactions
+    API->>Validator: Validate bank data
     Validator-->>API: Validation result
-
     API->>Analyzer: Analyze transactions
     Analyzer-->>API: Financial analysis
-
     API-->>Client: Bank analysis response
 ```
 
 ---
 
-# 54. Reconciliation API Flow
+# 62. Reconciliation API Flow
 
 ```mermaid
 sequenceDiagram
-
     participant Client
     participant API
     participant Reconciliation
+    participant SalaryData
     participant BankData
 
-    Client->>API: Submit salary + bank data
-
-    API->>Reconciliation: Find candidates
-    Reconciliation->>BankData: Filter transactions
-
-    BankData-->>Reconciliation: Candidate transactions
-
-    Reconciliation->>Reconciliation: Compare amount
-    Reconciliation->>Reconciliation: Compare date
-    Reconciliation->>Reconciliation: Compare narration
-    Reconciliation->>Reconciliation: Compare periodicity
-
-    Reconciliation-->>API: Scored candidates
-
+    Client->>API: Submit salary + bank analysis
+    API->>Reconciliation: Reconcile
+    Reconciliation->>SalaryData: Read net salary + month
+    Reconciliation->>BankData: Read statement transactions
+    BankData-->>Reconciliation: Credit transactions
+    Reconciliation->>Reconciliation: Score amount
+    Reconciliation->>Reconciliation: Score date
+    Reconciliation->>Reconciliation: Score narration
+    Reconciliation->>Reconciliation: Score periodicity
+    Reconciliation-->>API: Decision + candidates
     API-->>Client: Explainable reconciliation result
 ```
 
 ---
 
-# 55. Deterministic Processing Boundary
+# 63. Current Implemented API Surface
 
-The API contract intentionally separates AI extraction from financial processing.
-
-```text
-LLM
- |
- v
-Structured Data
- |
- v
-Pydantic
- |
- v
-Validation
- |
- v
-Financial Analysis
- |
- v
-Reconciliation
-```
-
-Financial calculations are not delegated to the LLM.
-
----
-
-# 56. Current Implemented API Surface
-
-At the initial foundation stage, the implemented API includes:
+The current implemented API surface is:
 
 ```text
-GET /
-GET /api/health
-```
+GET  /
+GET  /api/health
 
-The Angular frontend currently consumes:
-
-```text
-GET /api/health
-```
-
-This has been verified through local Angular → FastAPI communication.
-
----
-
-# 57. Planned API Surface
-
-The next implementation stages will add:
-
-```text
 POST /api/documents/analyze
-
 POST /api/documents/salary-slip
-
 POST /api/documents/bank-statement
-
 POST /api/documents/reconcile
+```
 
+The reconciliation route is registered under:
+
+```text
+/api/documents/reconcile
+```
+
+There is currently no implemented persistent document retrieval endpoint.
+
+Therefore:
+
+```text
 GET /api/documents/{document_id}
 ```
 
-These endpoints will be implemented incrementally as the underlying processing services become available.
+should be treated as future functionality rather than a current API.
 
 ---
 
-# 58. API Versioning
+# 64. API Endpoint Summary
 
-The initial prototype does not require explicit versioning.
+| Method | Endpoint | Purpose | Current |
+|---|---|---|---|
+| GET | `/` | Application information | Implemented |
+| GET | `/api/health` | Health check | Implemented |
+| POST | `/api/documents/analyze` | Automatic classification + analysis | Implemented |
+| POST | `/api/documents/salary-slip` | Salary-slip processing | Implemented |
+| POST | `/api/documents/bank-statement` | Bank-statement processing | Implemented |
+| POST | `/api/documents/reconcile` | Salary-bank reconciliation | Implemented |
+| GET | `/api/documents/{document_id}` | Persistent result retrieval | Future |
 
-A production implementation may use:
+---
+
+# 65. API Design Principles
+
+## Explicit contracts
+
+Requests and responses use typed Pydantic schemas on the backend.
+
+## Separation of concerns
+
+Routes delegate to services.
+
+## Deterministic financial logic
+
+Financial calculations are implemented in application code.
+
+## Explainability
+
+Analysis and reconciliation expose reasons and component scores where appropriate.
+
+## Human review
+
+Ambiguous or low-confidence results are surfaced rather than silently converted into definitive conclusions.
+
+## Provider independence
+
+LLM implementation is hidden behind the provider abstraction.
+
+## Privacy
+
+Sensitive document information is not unnecessarily exposed through logs or error responses.
+
+## Testability
+
+The mock provider allows deterministic tests without depending on live LLM calls.
+
+---
+
+# 66. API Testing
+
+The backend API is covered by automated tests including:
+
+```text
+Health endpoint
+Document analysis
+Salary analysis
+Bank analysis
+Reconciliation API
+Provider behavior
+Validation
+Normalization
+Error paths
+```
+
+The test suite forces the mock LLM provider so that automated tests do not consume OpenAI API credits or depend on network availability.
+
+Real OpenAI extraction is verified separately through controlled local smoke tests.
+
+---
+
+# 67. Representative Reconciliation Scenarios
+
+The current implementation has been verified against four important decision states.
+
+## Exact match
+
+```text
+Salary net:       ₹50,500
+Bank salary:      ₹50,500
+```
+
+Result:
+
+```text
+matched
+```
+
+Representative score:
+
+```text
+0.95
+```
+
+## Amount mismatch
+
+```text
+Salary net:       ₹50,500
+Bank credit:      ₹48,500
+```
+
+Result:
+
+```text
+needs_review
+```
+
+The candidate is exposed rather than silently accepted.
+
+## Multiple candidates
+
+Two salary-like credits with comparable scores:
+
+```text
+₹50,000
+₹50,000
+```
+
+Result:
+
+```text
+multiple_candidates
+```
+
+The system does not silently choose one.
+
+## No salary
+
+Unrelated credits without sufficient salary evidence:
+
+```text
+₹25,000
+₹30,000
+```
+
+Result:
+
+```text
+no_match
+```
+
+These states demonstrate that reconciliation is a decision process rather than a simple exact-amount lookup.
+
+---
+
+# 68. Error and Review Philosophy
+
+The API distinguishes:
+
+```text
+No evidence
+    ≠
+Weak evidence
+    ≠
+Strong evidence
+```
+
+Therefore:
+
+```text
+no_match
+needs_review
+matched
+multiple_candidates
+```
+
+are intentionally different outcomes.
+
+This is important for financial-document workflows because a system should not manufacture certainty when the extracted evidence is ambiguous.
+
+---
+
+# 69. Future API Enhancements
+
+Potential production enhancements include:
+
+```text
+GET /api/documents/{document_id}
+GET /api/documents/{document_id}/transactions
+GET /api/documents/{document_id}/analysis
+GET /api/documents/{document_id}/reconciliation
+POST /api/documents/{document_id}/review
+POST /api/documents/{document_id}/feedback
+```
+
+Other possible additions:
+
+- Authentication
+- Authorization
+- Pagination
+- Persistent document history
+- Audit logging
+- Source-page traceability
+- User feedback
+- Document comparison
+- Multi-month salary analysis
+- Async processing
+- Processing-status APIs
+- Larger-document streaming/chunking
+- Production-grade idempotency
+
+These are not required for the current prototype API.
+
+---
+
+# 70. API Versioning
+
+The prototype currently uses:
+
+```text
+/api/...
+```
+
+without an explicit version.
+
+A production external API could introduce:
 
 ```text
 /api/v1/...
 ```
 
-For example:
+before the contract becomes long-lived.
+
+Versioning is intentionally deferred for the prototype.
+
+---
+
+# 71. Idempotency and Persistence
+
+The current prototype does not implement a persistent idempotency layer or document database.
+
+Future production implementations may introduce:
 
 ```text
-/api/v1/documents/analyze
+request_id
+idempotency_key
+document_hash
+persistent document ID
 ```
 
-Versioning should be introduced before making the API a long-lived external contract.
+to prevent duplicate processing and support retrieval/audit workflows.
 
 ---
 
-# 59. API Design Principles
+# 72. Pagination and Large Statements
 
-The API follows these principles:
+The current document-analysis response can return the extracted transaction collection directly.
 
-### Explicit contracts
+For production-scale statements, transaction pagination should be introduced through a persistent result API.
 
-Requests and responses should use typed schemas.
-
-### Predictable errors
-
-Errors should have stable codes.
-
-### Separation of concerns
-
-Routes should delegate processing to services.
-
-### No hidden calculations
-
-Important financial calculations should be represented explicitly.
-
-### Explainability
-
-Analysis and reconciliation results should include reasons where appropriate.
-
-### Privacy
-
-Sensitive document data should not be unnecessarily exposed.
-
-### Provider independence
-
-LLM/OCR provider implementation should remain behind service boundaries.
-
----
-
-# 60. Example End-to-End API Flow
+Potential parameters:
 
 ```text
-POST /api/documents/analyze
-        |
-        v
-File Validation
-        |
-        v
-Text Extraction / OCR
-        |
-        v
-Classification
-        |
-        +-------------------+
-        |                   |
-        v                   v
-Salary Slip          Bank Statement
-        |                   |
-        v                   v
-Salary Extraction     Bank Extraction
-        |                   |
-        v                   v
-Salary Validation     Transaction Validation
-        |                   |
-        |                   v
-        |             Financial Analysis
-        |                   |
-        +---------+---------+
+page
+page_size
+date_from
+date_to
+transaction_type
+min_amount
+max_amount
+search
+```
+
+These are future capabilities, not current `/api/documents/analyze` request parameters.
+
+---
+
+# 73. Security Requirements
+
+The API must protect:
+
+```text
+PAN
+Bank account numbers
+IFSC
+Salary values
+Transaction information
+Raw OCR text
+Uploaded document contents
+LLM credentials
+```
+
+Sensitive information should not appear in:
+
+```text
+Logs
+Exception traces
+Debug output
+Provider errors
+Operational metadata
+```
+
+The system should also maintain a temporary-file lifecycle so uploaded documents are not unnecessarily retained by the prototype.
+
+---
+
+# 74. External Provider Failure
+
+When an external LLM provider fails, the backend should convert the provider exception into a safe application-level error.
+
+Conceptually:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "LLM_PROVIDER_ERROR",
+    "message": "The document could not be processed by the extraction service."
+  }
+}
+```
+
+Provider credentials, raw provider responses, and internal exception details must not be returned to the Angular client.
+
+---
+
+# 75. Deterministic vs AI Responsibilities
+
+| Responsibility | Implementation |
+|---|---|
+| File validation | Deterministic |
+| PDF inspection | Deterministic |
+| OCR | Tesseract |
+| Classification | Deterministic text-signal classifier |
+| Structured field extraction | LLM provider |
+| Schema validation | Pydantic |
+| Salary arithmetic | Deterministic |
+| Salary consistency | Deterministic |
+| Bank totals | Deterministic |
+| Large transaction detection | Deterministic |
+| Salary-credit heuristics | Deterministic |
+| Recurring transaction heuristics | Deterministic |
+| EMI heuristics | Deterministic |
+| Reconciliation scoring | Deterministic |
+| Reconciliation decision | Deterministic |
+| Confidence calculation | Deterministic |
+
+This boundary is a core design characteristic of the project.
+
+---
+
+# 76. Final API Architecture
+
+```text
+                         Angular
+                           |
+                           | HTTP
+                           v
+                 +---------------------+
+                 |    FastAPI REST     |
+                 +---------------------+
+                           |
+            +--------------+--------------+
+            |              |              |
+            v              v              v
+       /analyze        /health       /reconcile
+            |
+            v
+       Ingestion
+            |
+       +----+----+
+       |         |
+       v         v
+   PyMuPDF   Tesseract
+       |         |
+       +----+----+
+            |
+            v
+       Classification
+            |
+       +----+----------------+
+       |                     |
+       v                     v
+ Salary Extraction      Bank Extraction
+       |                     |
+       v                     v
+  Pydantic Models       Pydantic Models
+       |                     |
+       v                     v
+ Salary Validation      Bank Validation
+       |                     |
+       v                     v
+ Salary Analysis        Bank Analysis
+       |                     |
+       +----------+----------+
                   |
                   v
-             Reconciliation
+            Reconciliation
                   |
                   v
-              Confidence
-                  |
-                  v
-          Structured Response
+         Explainable Result
 ```
 
 ---
 
-# 61. API Success Criteria
+# 77. API Success Criteria
 
-The API layer is considered complete when:
+The current API implementation should be considered functionally complete for the prototype when:
 
-* Supported documents can be uploaded.
-* Unsupported files are rejected.
-* File-size limits are enforced.
-* PDF and image documents can enter processing.
-* Text extraction/OCR can be selected appropriately.
-* Documents can be classified.
-* Salary data can be extracted.
-* Bank data can be extracted.
-* Structured schemas validate extraction output.
-* Salary arithmetic is validated.
-* Bank transactions are analyzed.
-* Large transactions are identified.
-* Recurring patterns are identified.
-* Salary-credit candidates are identified.
-* EMI/loan candidates are identified.
-* Salary-bank reconciliation produces explainable candidates.
-* Low-confidence results can be sent for human review.
-* Errors use structured responses.
-* Sensitive data is not unnecessarily exposed.
-* Angular can consume the API.
-
----
-
-# 62. Future API Enhancements
-
-Potential future enhancements include:
-
-```text
-GET /api/documents/{document_id}
-
-GET /api/documents/{document_id}/transactions
-
-GET /api/documents/{document_id}/analysis
-
-GET /api/documents/{document_id}/reconciliation
-
-POST /api/documents/{document_id}/review
-
-POST /api/documents/{document_id}/feedback
-```
-
-Other possible capabilities:
-
-* Authentication.
-* Authorization.
-* Pagination.
-* Async processing.
-* WebSocket/SSE processing status.
-* Persistent document history.
-* Audit logging.
-* Source-page traceability.
-* User feedback on extraction.
-* Document comparison.
-* Multi-month salary analysis.
-
-These are outside the minimum prototype scope.
+- Supported PDF/JPG/JPEG/PNG documents can be uploaded.
+- Unsupported input is rejected.
+- File-size validation is applied.
+- PDFs can use native extraction when possible.
+- Scanned PDFs and images can use OCR.
+- Documents can be classified.
+- Salary data can be extracted into typed structures.
+- Bank data can be extracted into typed structures.
+- Salary arithmetic is validated deterministically.
+- Bank transaction totals are calculated deterministically.
+- Large transactions are identified.
+- Salary-credit candidates are identified.
+- Recurring transaction patterns are identified.
+- EMI/loan candidates are identified.
+- Confidence is surfaced.
+- Reconciliation produces explainable candidate scores.
+- Multiple candidates are surfaced rather than silently selected.
+- Material amount mismatches can require human review.
+- No-match cases are represented explicitly.
+- Angular can consume the backend API.
+- Automated backend and frontend tests cover the core workflows.
+- Sensitive information is not unnecessarily exposed through logs or errors.
 
 ---
 
-# 63. API Contract Summary
+# 78. Final API Principle
 
-```text
-                         REST API
-                            |
-             +--------------+--------------+
-             |              |              |
-          Health         Analyze         Reconcile
-             |              |
-             |              |
-             |        Document Pipeline
-             |              |
-             |     +--------+--------+
-             |     |        |        |
-             |    OCR   Classification
-             |              |
-             |          Extraction
-             |              |
-             |          Validation
-             |              |
-             |           Analysis
-             |              |
-             +--------------+
-                            |
-                            v
-                    Structured Result
-```
-
-The API exists to expose a predictable application boundary while keeping document processing, AI integration, validation, financial analysis, and reconciliation inside their respective backend services.
-
----
-
-# 64. Final API Principle
-
-The API should never expose the internal complexity of the processing pipeline unnecessarily.
+The API exists to provide a stable boundary between the Angular application and the document-intelligence backend.
 
 The client should be able to ask:
 
@@ -1995,20 +2407,19 @@ The client should be able to ask:
 "Analyze this document."
 ```
 
-and receive:
+and receive structured information answering:
 
 ```text
 What type of document is this?
 What information was extracted?
-How confident is the system?
+How confident is the result?
 Is the extracted information internally consistent?
 What financial patterns were detected?
 Can salary income be reconciled with bank transactions?
+Are there multiple possible matches?
 Does the result require human review?
 ```
 
-while the backend remains responsible for the complete processing pipeline.
+The API should expose **structured financial intelligence, not raw AI output**.
 
-> **The API exposes structured financial intelligence, not raw AI output.**
-
-````
+> **The AI extracts information; deterministic engineering controls whether the extracted information is trustworthy.**

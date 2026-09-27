@@ -1,95 +1,85 @@
 # Financial Document Analyzer
 
-AI-powered financial document intelligence prototype for analyzing
-**salary slips** and **bank statements**.
+AI-powered financial document intelligence prototype for analyzing **salary slips** and **bank statements**.
 
-The system combines document processing, OCR, LLM-based structured
-extraction, deterministic validation, financial analysis, and
-salary-to-bank reconciliation.
+The system combines document ingestion, PDF/text extraction, OCR, document classification, LLM-based structured extraction, schema validation, deterministic financial analysis, confidence scoring, and salary-to-bank reconciliation.
 
-> **Core engineering principle:** The AI extracts information, but
-> deterministic engineering controls decide whether the extracted
-> information is trustworthy.
+> **Core engineering principle:** The AI extracts information, but deterministic engineering controls decide whether the extracted information is trustworthy.
 
-------------------------------------------------------------------------
+---
 
 ## 1. Project Overview
 
-Financial documents are semi-structured. Salary slips and bank
-statements can have different layouts, labels, table structures, scan
-quality, and formatting.
+Financial documents are semi-structured and can vary in layout, labels, table structure, scan quality, date formats, and number formats.
 
-This project provides a processing pipeline that converts those
-documents into structured financial information and then validates and
-analyzes the result.
+This prototype converts supported documents into structured financial information and then validates and analyzes that information.
 
-### Supported documents
+### Supported formats
 
-  Format   Supported
-  -------- -----------
-  PDF      Yes
-  JPG      Yes
-  JPEG     Yes
-  PNG      Yes
+| Format | Supported |
+|---|---|
+| PDF | Yes |
+| JPG | Yes |
+| JPEG | Yes |
+| PNG | Yes |
 
 ### Supported document types
 
--   Salary Slip
--   Bank Statement
--   Unknown / Unsupported
+- Salary Slip
+- Bank Statement
+- Unknown / Unsupported
 
-------------------------------------------------------------------------
+---
 
-## 2. What the System Does
+## 2. Core Capabilities
 
 ### Salary Slip
 
-The analyzer is designed to extract:
+Extracts, when available:
 
--   Employee name
--   Employee ID
--   Employer
--   Salary month
--   PAN, when available
--   Basic salary
--   HRA
--   Allowances
--   Bonus / incentive
--   Other earnings
--   Gross salary
--   PF
--   Professional tax
--   TDS
--   Other deductions
--   Total deductions
--   Net salary
--   Bank account number, when available
+- Employee name
+- Employee ID
+- Employer
+- Salary month
+- PAN
+- Basic salary
+- HRA
+- Allowances
+- Bonus / incentive
+- Other earnings
+- Gross salary
+- PF
+- Professional tax
+- TDS
+- Other deductions
+- Total deductions
+- Net salary
+- Bank account number
 
-It then performs deterministic validation such as:
+Deterministic validation includes:
 
-``` text
-Gross Salary - Total Deductions ≈ Net Salary
+```text
+Expected Net Salary = Gross Salary - Total Deductions
 ```
 
-------------------------------------------------------------------------
+The system reports calculated values, reported values, differences, validation errors/warnings, confidence, and whether human review is required.
 
 ### Bank Statement
 
-The analyzer is designed to extract:
+Extracts:
 
--   Account holder
--   Bank
--   Account number
--   IFSC, when available
--   Statement start date
--   Statement end date
--   Opening balance
--   Closing balance
--   Transactions
+- Account holder
+- Bank name
+- Account number
+- IFSC
+- Statement start/end dates
+- Opening balance
+- Closing balance
+- Transactions
 
 Each transaction contains:
 
-``` text
+```text
 Date
 Narration
 Debit
@@ -97,180 +87,209 @@ Credit
 Balance
 ```
 
-The system can then calculate and identify:
+The analysis layer identifies:
 
--   Total credits
--   Total debits
--   Transactions above ₹50,000
--   Possible salary credits
--   Recurring transactions
--   Likely EMI / loan transactions
+- Total credits
+- Total debits
+- Average monthly credit
+- Transactions above ₹50,000
+- Possible salary credits
+- Recurring transactions
+- Likely EMI / loan transactions
 
-These indicators are deterministic or heuristic and should not be
-treated as definitive financial or legal conclusions.
+These are deterministic/heuristic indicators and are not definitive financial, legal, fraud, or credit conclusions.
 
-------------------------------------------------------------------------
+---
 
 ## 3. Salary-to-Bank Reconciliation
 
-The system compares the salary-slip net salary with candidate bank
-credits.
+The prototype compares salary-slip net salary against candidate bank credits.
 
-Example:
-
-``` text
+```text
 Salary Slip
-Net Salary: ₹66,500
-       |
-       v
-Bank Statement
-Candidate Credit: ₹66,500
-       |
-       v
-Reconciliation
-       |
-       +--> Amount
-       +--> Date
-       +--> Narration
-       +--> Periodicity
-       |
-       v
-Matched / Not Matched / Needs Review
+    |
+    | Net Salary
+    v
+Candidate Bank Credits
+    |
+    +--> Amount similarity
+    +--> Date proximity
+    +--> Narration similarity
+    +--> Periodicity
+    |
+    v
+Candidate Scoring
+    |
+    v
+Matched / Multiple Candidates / No Match / Needs Review
 ```
 
-The prototype uses configurable reconciliation weights conceptually
-based on:
+### Prototype scoring weights
 
--   Amount: 50%
--   Date: 25%
--   Narration: 15%
--   Periodicity: 10%
+| Signal | Weight |
+|---|---:|
+| Amount | 50% |
+| Date | 25% |
+| Narration | 15% |
+| Periodicity | 10% |
 
-These are implementation choices for the prototype, not universal
-financial standards.
+These are configurable prototype choices, not universal financial standards.
 
-------------------------------------------------------------------------
+Reconciliation statuses:
+
+```text
+matched
+multiple_candidates
+no_match
+needs_review
+```
+
+Results include candidate scores, reasons, confidence, and selected candidate when appropriate.
+
+Reconciliation is deterministic and does not require an LLM.
+
+---
 
 ## 4. Architecture
 
-``` text
-                    Angular Frontend
-                          |
-                          | REST API
-                          v
-                    FastAPI Backend
-                          |
-              +-----------+-----------+
-              |           |           |
-              v           v           v
-          Ingestion   OCR/Text    Classification
-                          |
-                          v
-                  LLM Extraction
-                          |
-                          v
-                 Pydantic Validation
-                          |
-                          v
-              Deterministic Validation
-                          |
-                          v
-                 Financial Analysis
-                          |
-                          v
-                   Reconciliation
-                          |
-                          v
-             Confidence / Human Review
+```text
+                    Angular 22 Frontend
+                            |
+                         REST API
+                            |
+                            v
+                     FastAPI Backend
+                            |
+              +-------------+-------------+
+              |             |             |
+              v             v             v
+          Ingestion     OCR/Text    Classification
+              |             |             |
+              +-------------+-------------+
+                            |
+                            v
+                  LLM Structured Extraction
+                            |
+                            v
+                    Pydantic Validation
+                            |
+                            v
+               Numeric / Cross-field Validation
+                            |
+                            v
+                  Deterministic Analysis
+                            |
+                  +---------+---------+
+                  |                   |
+                  v                   v
+            Salary Analysis     Bank Analysis
+                  |                   |
+                  +---------+---------+
+                            |
+                            v
+                       Reconciliation
+                            |
+                            v
+                  Confidence + Explainability
+                            |
+                            v
+                       Human Review
 ```
 
-### Processing principle
+### Processing pipeline
 
-``` text
+```text
 Document
-   ↓
+  ↓
 File Validation
-   ↓
-Text Extraction / OCR
-   ↓
+  ↓
+PDF Text Extraction / Image Handling
+  ↓
+OCR Fallback
+  ↓
+Text Normalization
+  ↓
 Classification
-   ↓
+  ↓
 AI Structured Extraction
-   ↓
-Schema Validation
-   ↓
+  ↓
+Pydantic Schema Validation
+  ↓
 Numeric / Cross-field Validation
-   ↓
-Financial Analysis
-   ↓
-Reconciliation
-   ↓
-Confidence + Explainability
+  ↓
+Deterministic Financial Analysis
+  ↓
+Confidence
+  ↓
+Salary ↔ Bank Reconciliation
+  ↓
+Explainable Result
+  ↓
+Human Review when Required
 ```
 
-See:
+### LLM provider abstraction
 
--   `ARCHITECTURE.md`
--   `API.md`
--   `SECURITY.md`
--   `DECISIONS.md`
--   `LIMITATIONS.md`
--   `DEMO.md`
+```text
+Application
+    |
+Extraction Service
+    |
+LLM Provider Interface
+    |
+    +---- Mock Provider
+    |
+    +---- OpenAI Provider
+```
 
-for detailed project documentation.
+Provider-specific AI code is isolated from financial business rules, allowing deterministic testing without live LLM calls.
 
-------------------------------------------------------------------------
+---
 
-# 5. Technology Stack
+## 5. Technology Stack
 
-## Backend
+### Backend
 
--   Python
--   FastAPI
--   Pydantic v2
--   Pydantic Settings
--   Uvicorn
--   Pytest
--   OCR/document-processing libraries
--   Configurable LLM provider
+- Python 3.11+
+- FastAPI
+- Pydantic v2
+- Pydantic Settings
+- Uvicorn
+- Pytest
+- PyMuPDF
+- Pillow
+- pytesseract
+- Tesseract OCR
+- OpenAI Python SDK
+- Configurable LLM provider
 
-## Frontend
+### Frontend
 
--   Angular 22
--   TypeScript
--   Angular HttpClient
--   SCSS
--   Vitest / Angular testing tooling
+- Angular 22
+- TypeScript
+- Angular HttpClient
+- SCSS
+- Vitest / Angular testing tooling
 
-## Development
+### Development
 
--   Git
--   GitHub
--   Linux
--   Python virtual environment
--   npm
+- Git
+- GitHub
+- Linux
+- Python virtual environment
+- npm
 
-## Planned / Optional Infrastructure
+The prototype intentionally avoids Kafka, Redis, Kubernetes, microservices, CQRS, and event sourcing because they are not required for the current scope.
 
--   Docker
--   Docker Compose
--   CI/CD
+---
 
-The prototype intentionally avoids unnecessary infrastructure such as
-Kafka, Redis, Kubernetes, and microservices unless a clear technical
-requirement emerges.
+## 6. Repository Structure
 
-------------------------------------------------------------------------
-
-# 6. Repository Structure
-
-``` text
+```text
 financial-document-analyzer/
-│
 ├── backend/
 │   ├── app/
-│   │   ├── api/
-│   │   │   └── routes/
+│   │   ├── api/routes/
 │   │   ├── core/
 │   │   ├── schemas/
 │   │   ├── services/
@@ -278,30 +297,23 @@ financial-document-analyzer/
 │   │   │   ├── classification/
 │   │   │   ├── ocr/
 │   │   │   ├── extraction/
+│   │   │   │   └── providers/
 │   │   │   ├── validation/
 │   │   │   ├── analysis/
 │   │   │   └── reconciliation/
 │   │   └── main.py
-│   │
 │   ├── tests/
 │   ├── requirements.txt
 │   └── .env
-│
 ├── frontend/
-│   ├── src/
-│   │   └── app/
-│   │       └── core/
+│   ├── src/app/
 │   ├── package.json
 │   └── angular.json
-│
 ├── samples/
 │   ├── salary/
 │   ├── bank/
-│   └── invalid/
-│
-├── tests/
+│   └── reconciliation/
 ├── docs/
-│
 ├── ARCHITECTURE.md
 ├── API.md
 ├── SECURITY.md
@@ -314,27 +326,24 @@ financial-document-analyzer/
 └── docker-compose.yml
 ```
 
-Some directories and services are introduced progressively during
-implementation.
+`.env` is local-only and must never be committed.
 
-------------------------------------------------------------------------
+---
 
-# 7. Prerequisites
+## 7. Prerequisites
 
-Install the following before starting:
+Install:
 
-### Required
+- Git
+- Python 3.11+
+- Node.js 24.x
+- npm
+- Angular CLI
+- Tesseract OCR
 
--   Git
--   Python 3.11+
--   Node.js 24.x
--   npm
--   Angular CLI
--   Tesseract OCR for OCR-based processing
+Verify:
 
-Check versions:
-
-``` bash
+```bash
 git --version
 python3 --version
 node --version
@@ -343,152 +352,83 @@ ng version
 tesseract --version
 ```
 
-The current development environment targets Node.js 24.x and Angular 22.
+---
 
-------------------------------------------------------------------------
+## 8. Clone
 
-# 8. Clone the Repository
-
-``` bash
+```bash
 git clone git@github.com:SAHILDAS/financial-document-analyzer.git
 cd financial-document-analyzer
 ```
 
-If using HTTPS instead:
+HTTPS alternative:
 
-``` bash
+```bash
 git clone https://github.com/SAHILDAS/financial-document-analyzer.git
 cd financial-document-analyzer
 ```
 
-------------------------------------------------------------------------
+---
 
-# 9. Backend Setup
+## 9. Backend Setup
 
-Move into the backend:
-
-``` bash
+```bash
 cd backend
-```
-
-Create a virtual environment:
-
-``` bash
 python3 -m venv .venv
-```
-
-Activate it:
-
-``` bash
 source .venv/bin/activate
-```
-
-Install dependencies:
-
-``` bash
 pip install -r requirements.txt
 ```
 
-If the requirements file is updated during development, run:
+Create the environment file:
 
-``` bash
-pip install -r requirements.txt
-```
-
-again.
-
-------------------------------------------------------------------------
-
-# 10. Backend Environment Configuration
-
-Create the local environment file:
-
-``` bash
+```bash
 cp .env.example .env
 ```
 
-If `.env.example` is not yet available, create `.env` using the
-configuration documented in the project.
+Example configuration:
 
-Typical development configuration:
-
-``` env
+```env
 APP_NAME=Financial Document Analyzer
 APP_ENV=development
 APP_DEBUG=true
-
 BACKEND_HOST=127.0.0.1
 BACKEND_PORT=8000
-
 FRONTEND_URL=http://localhost:4200
-
-LLM_PROVIDER=
-LLM_API_KEY=
-
+LLM_PROVIDER=openai
+LLM_API_KEY=your-api-key
 OCR_PROVIDER=tesseract
-
 MAX_FILE_SIZE_MB=20
 ```
 
-### Important
+Never commit `.env`. Commit only `.env.example`.
 
-Never commit:
+For automated tests, the suite forces the mock LLM provider so tests do not make live API calls.
 
-``` text
-.env
-```
+---
 
-to Git.
+## 10. Run Backend
 
-Use:
-
-``` text
-.env.example
-```
-
-for non-secret configuration templates.
-
-------------------------------------------------------------------------
-
-# 11. Run the Backend
-
-From:
-
-``` text
-backend/
-```
-
-activate the environment:
-
-``` bash
+```bash
+cd backend
 source .venv/bin/activate
-```
-
-Start FastAPI:
-
-``` bash
 uvicorn app.main:app --reload
 ```
 
-The development server should be available at:
+Backend:
 
-``` text
+```text
 http://127.0.0.1:8000
 ```
 
-------------------------------------------------------------------------
+Health:
 
-# 12. Verify the Backend
-
-Health endpoint:
-
-``` bash
+```bash
 curl http://127.0.0.1:8000/api/health
 ```
 
-Expected response:
+Expected:
 
-``` json
+```json
 {
   "status": "ok",
   "service": "Financial Document Analyzer",
@@ -496,584 +436,163 @@ Expected response:
 }
 ```
 
-Root endpoint:
+Swagger:
 
-``` bash
-curl http://127.0.0.1:8000/
-```
-
-API documentation:
-
-``` text
+```text
 http://127.0.0.1:8000/docs
 ```
 
-OpenAPI schema:
+OpenAPI:
 
-``` text
+```text
 http://127.0.0.1:8000/openapi.json
 ```
 
-------------------------------------------------------------------------
+---
 
-# 13. Run Backend Tests
+## 11. Frontend Setup
 
-From `backend/`:
+In another terminal:
 
-``` bash
-source .venv/bin/activate
-pytest -v
-```
-
-The foundation currently includes health and domain schema tests.
-
-The test suite will grow as ingestion, OCR, extraction, validation,
-analysis, and reconciliation are implemented.
-
-------------------------------------------------------------------------
-
-# 14. Frontend Setup
-
-Open another terminal.
-
-From the project root:
-
-``` bash
-cd frontend
-```
-
-Install dependencies:
-
-``` bash
+```bash
+cd financial-document-analyzer/frontend
 npm install
-```
-
-Start Angular:
-
-``` bash
 npm start
 ```
 
-The development application should be available at:
+Frontend:
 
-``` text
+```text
 http://localhost:4200
 ```
 
-------------------------------------------------------------------------
+Connectivity:
 
-# 15. Verify Frontend ↔ Backend Connectivity
-
-With both applications running:
-
-``` text
+```text
 Angular
-http://localhost:4200
-
-FastAPI
-http://127.0.0.1:8000
-```
-
-The Angular application calls:
-
-``` text
-GET http://127.0.0.1:8000/api/health
-```
-
-The starter page should display:
-
-``` text
-● Backend Connected
-
-Financial Document Analyzer — development
-```
-
-This confirms:
-
-``` text
-Angular
-   ↓
+  ↓
 HttpClient
-   ↓
-FastAPI
-   ↓
-/api/health
-   ↓
+  ↓
+FastAPI /api/health
+  ↓
 HTTP 200
-   ↓
+  ↓
 Angular UI
 ```
 
-------------------------------------------------------------------------
+---
 
-# 16. Build the Frontend
+## 12. API Surface
 
-From `frontend/`:
+### Health
 
-``` bash
-npm run build
-```
-
-A successful build should report:
-
-``` text
-Application bundle generation complete.
-```
-
-------------------------------------------------------------------------
-
-# 17. Development Workflow
-
-Use two terminals.
-
-### Terminal 1 --- Backend
-
-``` bash
-cd financial-document-analyzer/backend
-source .venv/bin/activate
-uvicorn app.main:app --reload
-```
-
-### Terminal 2 --- Frontend
-
-``` bash
-cd financial-document-analyzer/frontend
-npm start
-```
-
-Then open:
-
-``` text
-http://localhost:4200
-```
-
-------------------------------------------------------------------------
-
-# 18. Implementation Roadmap
-
-The project is implemented incrementally.
-
-## Day 1 --- Foundation
-
-Completed:
-
--   Repository setup
--   FastAPI foundation
--   Angular foundation
--   Domain contracts
--   Health endpoint
--   Angular/backend connectivity
--   Architecture documentation
--   API documentation
--   Security documentation
--   Architecture decisions
--   Limitations
--   Demo guide
-
-------------------------------------------------------------------------
-
-## Day 2 --- Document Ingestion & OCR
-
-Planned:
-
--   File validation
--   File type validation
--   File size validation
--   Temporary file lifecycle
--   PDF text extraction
--   Image handling
--   OCR fallback
--   Text normalization
--   Extraction quality metadata
--   Graceful ingestion errors
--   Initial document classification
-
-Target flow:
-
-``` text
-PDF / JPG / JPEG / PNG
-          ↓
-    File Validation
-          ↓
- Temporary Processing
-          ↓
- PDF Text Extraction
-          ↓
- OCR Fallback
-          ↓
- Normalized Text
-```
-
-------------------------------------------------------------------------
-
-## Day 3 --- Salary Extraction
-
-Planned:
-
--   Salary-slip classification
--   Structured LLM extraction
--   Salary schema validation
--   Numeric normalization
--   Gross/deduction/net validation
--   Confidence
--   Salary analysis UI
-
-------------------------------------------------------------------------
-
-## Day 4 --- Bank Extraction & Analysis
-
-Planned:
-
--   Bank statement extraction
--   Multipage transaction handling
--   Transaction validation
--   Credit/debit totals
--   Large transaction detection
--   Salary credit candidates
--   Recurring transaction detection
--   EMI/loan indicators
--   Bank analysis UI
-
-------------------------------------------------------------------------
-
-## Day 5 --- Reconciliation
-
-Planned:
-
--   Salary-to-bank reconciliation
--   Candidate generation
--   Candidate scoring
--   Amount tolerance
--   Date tolerance
--   Narration similarity
--   Periodicity
--   Multiple candidate handling
--   No-match handling
--   Explainable results
--   Full frontend integration
-
-------------------------------------------------------------------------
-
-## Day 6 --- Reliability & Security
-
-Planned:
-
--   Error handling
--   Edge cases
--   Unit tests
--   Integration tests
--   Security review
--   PII masking
--   Structured logging
--   Docker
--   CI
--   Feature freeze
-
-------------------------------------------------------------------------
-
-## Day 7 --- Deployment & QA
-
-Planned:
-
--   Deployment preparation
--   End-to-end QA
--   Documentation review
--   Demo validation
--   Screenshots
--   Presentation preparation
-
-------------------------------------------------------------------------
-
-## Day 8 --- Final Verification
-
-Final day is reserved for:
-
--   Regression testing
--   Demo rehearsal
--   Final bug fixes
--   Repository cleanup
--   Documentation verification
--   Presentation
-
-No major new features should be introduced on the final day.
-
-------------------------------------------------------------------------
-
-# 19. API Surface
-
-Current foundation endpoints:
-
-``` text
+```http
 GET /api/health
-GET /
 ```
 
-Planned core endpoints:
+### Analyze document
 
-``` text
+```http
 POST /api/documents/analyze
-POST /api/documents/salary-slip
-POST /api/documents/bank-statement
-POST /api/documents/reconcile
-GET  /api/documents/{document_id}
 ```
 
-See `API.md` for the complete API contract and processing behavior.
+Pipeline:
 
-------------------------------------------------------------------------
+```text
+Ingestion
+→ OCR/Text Extraction
+→ Classification
+→ Structured Extraction
+→ Validation
+→ Analysis
+```
 
-# 20. Testing Strategy
+### Salary-specific analysis
 
-Tests should focus on business behavior rather than only implementation
-details.
+```http
+POST /api/documents/salary-slip
+```
 
-Important test areas:
+### Bank-specific analysis
 
-### Ingestion
-
--   Supported file types
--   Unsupported file types
--   File size limits
--   Invalid files
--   Password-protected files
--   Unreadable files
-
-### Classification
-
--   Salary slip
--   Bank statement
--   Unknown document
-
-### Salary
-
--   Schema validation
--   Missing fields
--   Gross salary
--   Deductions
--   Net salary
--   Calculation consistency
--   Invalid numeric values
-
-### Bank
-
--   Transaction parsing
--   Credit/debit totals
--   Large transactions
--   Duplicate transactions
--   Salary credit candidates
--   Recurring transactions
--   EMI candidates
+```http
+POST /api/documents/bank-statement
+```
 
 ### Reconciliation
 
--   Exact match
--   Date tolerance
--   Amount tolerance
--   Narration differences
--   Multiple candidates
--   No match
--   Low confidence
-
-### API
-
--   Successful requests
--   Invalid uploads
--   Processing failures
--   Graceful error responses
-
-Run:
-
-``` bash
-cd backend
-source .venv/bin/activate
-pytest -v
+```http
+POST /api/documents/reconcile
 ```
 
-------------------------------------------------------------------------
+### Optional document lookup
 
-# 21. Sample Data
-
-Use synthetic financial data only.
-
-Recommended structure:
-
-``` text
-samples/
-├── salary/
-│   ├── salary_clean.pdf
-│   ├── salary_missing_fields.pdf
-│   ├── salary_inconsistent.pdf
-│   └── salary_scan.pdf
-│
-├── bank/
-│   ├── bank_clean.pdf
-│   ├── bank_multipage.pdf
-│   ├── bank_duplicate_transactions.pdf
-│   └── bank_no_salary.pdf
-│
-└── invalid/
-    ├── unknown_document.pdf
-    └── unsupported.txt
+```http
+GET /api/documents/{document_id}
 ```
 
-Do not add real salary slips, bank statements, PAN numbers, or account
-information to the repository.
+See `API.md` for detailed request/response contracts.
 
-------------------------------------------------------------------------
+---
 
-# 22. Security & Privacy
+## 13. Error Handling
 
-Financial documents contain sensitive information.
+The application avoids exposing internal stack traces to users.
 
-The project therefore follows these principles:
+Handled cases include:
 
--   Do not log complete financial documents.
--   Do not log raw OCR text unnecessarily.
--   Do not commit API keys.
--   Do not commit `.env`.
--   Mask PAN and account numbers in user-facing output where
-    appropriate.
--   Use temporary storage for document processing.
--   Clean temporary files after processing.
--   Document external OCR/LLM data exposure.
--   Use synthetic sample data.
--   Do not expose internal stack traces to users.
+- Unsupported file type
+- Invalid file
+- File too large
+- Unreadable PDF
+- Password-protected PDF
+- OCR failure
+- Empty/unusable extracted text
+- Unknown document type
+- LLM/provider failure
+- Malformed structured extraction
+- Invalid financial values
+- No salary credit candidate
+- Multiple salary candidates
+- Low-confidence result
+- Human review required
 
-See `SECURITY.md` for detailed security requirements and production
-considerations.
+---
 
-------------------------------------------------------------------------
+## 14. Confidence Model
 
-# 23. Important Design Principles
+Prototype thresholds:
 
-### 1. AI is not the source of truth
-
-The LLM performs extraction.
-
-Application code performs:
-
--   calculations
--   validation
--   financial analysis
--   reconciliation scoring
--   thresholds
--   status decisions
-
-------------------------------------------------------------------------
-
-### 2. Validate at multiple layers
-
-``` text
-LLM Output
-    ↓
-Pydantic Schema
-    ↓
-Field Validation
-    ↓
-Cross-field Validation
-    ↓
-Deterministic Financial Rules
-```
-
-------------------------------------------------------------------------
-
-### 3. Explain uncertain results
-
-The system should surface:
-
-``` text
-Confidence
-Warnings
-Validation results
-Reconciliation reasons
-Human review requirements
-```
-
-rather than silently accepting uncertain data.
-
-------------------------------------------------------------------------
-
-### 4. Prefer graceful failure
-
-Unsupported or malformed documents should produce useful errors such as:
-
-``` text
-Unsupported file type
-Unreadable document
-OCR failed
-Document classification failed
-Extraction failed
-No matching salary credit found
-Human review required
-```
-
-rather than stack traces.
-
-------------------------------------------------------------------------
-
-### 5. Avoid premature infrastructure
-
-The prototype does not require:
-
--   Kafka
--   Redis
--   Kubernetes
--   Microservices
--   CQRS
--   Event sourcing
-
-unless a concrete requirement emerges.
-
-The priority is:
-
-``` text
-Correctness
-   ↓
-Reliability
-   ↓
-Explainability
-   ↓
-Testability
-   ↓
-Security
-   ↓
-Deployment
-   ↓
-Visual polish
-```
-
-------------------------------------------------------------------------
-
-# 24. Confidence Model
-
-Confidence is intended to communicate extraction/reconciliation
-uncertainty.
-
-Prototype implementation thresholds:
-
-``` text
+```text
 0.85 – 1.00   High
 0.65 – 0.84   Medium
 0.00 – 0.64   Low
 ```
 
-These thresholds are implementation choices, not statistical guarantees.
+Confidence considers factors such as:
 
-Low-confidence results should be eligible for:
+- OCR/text quality
+- Field completeness
+- Validation errors
+- Validation warnings
+- Extraction completeness
+- Reconciliation score
 
-``` text
+Low-confidence or inconsistent results can require:
+
+```text
 NEEDS_REVIEW
 ```
 
-------------------------------------------------------------------------
+These thresholds are implementation choices, not statistical guarantees.
 
-# 25. Financial Analysis
+---
 
-Financial calculations are deterministic.
+## 15. Deterministic Financial Analysis
 
-Examples:
+Financial calculations are performed by application code.
 
-``` text
+```text
 Total Credits = Σ credit transactions
 
 Total Debits = Σ debit transactions
@@ -1084,381 +603,558 @@ Gross Salary - Total Deductions
 
 Large transactions:
 
-``` text
+```text
 Transaction Amount > ₹50,000
 ```
 
-Recurring transactions can consider:
+Recurring detection considers:
 
--   normalized narration
--   similar amounts
--   repeated occurrence
--   approximate intervals
+- Normalized narration
+- Similar amounts
+- Repeated occurrence
+- Approximate intervals
 
-EMI/loan indicators can consider:
+EMI/loan indicators consider:
 
--   EMI keywords
--   loan keywords
--   NACH/ECS indicators
--   recurring debit
--   similar amount
--   monthly periodicity
+- EMI/loan keywords
+- NACH/ECS indicators
+- Recurring debit behavior
+- Similar amount
+- Monthly periodicity
 
 These are indicators and heuristics, not definitive classifications.
 
-------------------------------------------------------------------------
+---
 
-# 26. Demo
+## 16. Testing
 
-A recommended demo sequence is:
+### Backend
 
-``` text
-1. Introduce the problem
-2. Show architecture
-3. Upload salary slip
-4. Show classification
-5. Show extracted salary information
-6. Show deterministic salary validation
-7. Upload bank statement
-8. Show transactions
-9. Show financial analysis
-10. Show salary credit detection
-11. Show recurring transactions
-12. Show EMI indicator
-13. Reconcile salary with bank credit
-14. Demonstrate low-confidence input
-15. Demonstrate graceful error handling
-16. Explain security and production evolution
+```bash
+cd backend
+source .venv/bin/activate
+pytest -q
 ```
 
-See `DEMO.md` for the complete presentation script.
+Verified:
 
-------------------------------------------------------------------------
-
-# 27. Troubleshooting
-
-## Backend does not start
-
-Check:
-
-``` bash
-python3 --version
+```text
+183 passed, 1 warning
 ```
 
-Activate the virtual environment:
+The warning is a dependency-level Starlette/AnyIO deprecation warning.
 
-``` bash
-source backend/.venv/bin/activate
-```
+### Frontend
 
-Install dependencies:
-
-``` bash
-pip install -r backend/requirements.txt
-```
-
-Run:
-
-``` bash
-uvicorn app.main:app --reload
-```
-
-------------------------------------------------------------------------
-
-## Port 8000 is already in use
-
-Find the process:
-
-``` bash
-ss -ltnp | grep :8000
-```
-
-or:
-
-``` bash
-lsof -i :8000
-```
-
-Stop the old process if appropriate, then restart the backend.
-
-------------------------------------------------------------------------
-
-## Angular does not start
-
-Check:
-
-``` bash
-node --version
-npm --version
-```
-
-Install dependencies:
-
-``` bash
+```bash
 cd frontend
-npm install
+npm test -- --watch=false
 ```
 
-Start:
+Verified:
 
-``` bash
-npm start
+```text
+Test Files  1 passed
+Tests       38 passed
 ```
 
-------------------------------------------------------------------------
+### Production build
 
-## Angular cannot connect to backend
-
-Verify:
-
-``` bash
-curl http://127.0.0.1:8000/api/health
+```bash
+npm run build
 ```
 
-Check:
+Verified:
 
-``` text
-backend/.env
+```text
+Application bundle generation complete.
 ```
 
-for:
+### Test coverage areas
 
-``` env
-FRONTEND_URL=http://localhost:4200
-```
+- File ingestion and validation
+- PDF extraction
+- OCR
+- Classification
+- Salary extraction and normalization
+- Salary consistency
+- Confidence
+- Bank transaction extraction
+- Date/currency normalization
+- Credit/debit analysis
+- Salary candidates
+- Recurring transactions
+- EMI indicators
+- Reconciliation scoring
+- Multiple candidates
+- No match
+- Needs review
+- API errors
+- Frontend reconciliation state and formatting
 
-Then make sure Angular is opened using:
+---
 
-``` text
-http://localhost:4200
-```
-
-not a different origin unless that origin has been explicitly configured
-in FastAPI CORS settings.
-
-------------------------------------------------------------------------
-
-## CORS error
-
-The backend currently allows the configured frontend origin.
-
-Verify:
-
-``` env
-FRONTEND_URL=http://localhost:4200
-```
-
-Restart FastAPI after changing environment configuration.
-
-------------------------------------------------------------------------
-
-## OCR does not work
-
-Verify Tesseract:
-
-``` bash
-tesseract --version
-```
-
-If it is missing, install it using your operating system's package
-manager.
-
-OCR behavior is documented further in `LIMITATIONS.md`.
-
-------------------------------------------------------------------------
-
-# 28. Git Workflow
-
-Use focused commits.
-
-Examples:
-
-``` bash
-git add .
-git commit -m "chore: initialize financial document analyzer"
-```
-
-``` bash
-git commit -m "feat: add FastAPI application foundation"
-```
-
-``` bash
-git commit -m "feat: add Angular frontend foundation"
-```
-
-``` bash
-git commit -m "feat: define document analysis contracts"
-```
-
-Future examples:
-
-``` text
-feat: add document ingestion
-feat: add PDF text extraction
-feat: add OCR fallback
-feat: add document classification
-feat: add salary extraction
-feat: add salary validation
-feat: add bank statement extraction
-feat: add transaction analysis
-feat: add salary reconciliation
-test: add reconciliation coverage
-feat: add analysis dashboard
-chore: add Docker configuration
-ci: add backend and frontend checks
-docs: update demo workflow
-```
-
-Before committing:
-
-``` bash
-git status
-git diff --check
-git diff --stat
-```
-
-After committing:
-
-``` bash
-git log --oneline --decorate -10
-```
-
-Push:
-
-``` bash
-git push origin main
-```
-
-------------------------------------------------------------------------
-
-# 29. Development Rules
-
-While implementing the project:
-
-1.  Work incrementally.
-2.  Do not build the entire application in one step.
-3.  Verify each major component before depending on it.
-4.  Keep business rules deterministic.
-5.  Keep provider-specific AI/OCR code behind service interfaces where
-    practical.
-6.  Keep routes thin.
-7.  Keep domain schemas explicit.
-8.  Write tests with each important business rule.
-9.  Do not commit secrets or real financial data.
-10. Prefer simple architecture unless complexity is justified.
-11. Document significant architectural decisions.
-12. Keep the final demo reproducible.
-
-------------------------------------------------------------------------
-
-# 30. Prototype vs Production
-
-This repository is a prototype.
-
-A production version would require additional capabilities such as:
-
--   Authentication
--   Authorization
--   Persistent storage
--   Encrypted object storage
--   Audit logging
--   Stronger PII controls
--   Rate limiting
--   Asynchronous processing
--   Worker infrastructure
--   Retry and failure handling
--   Provider failover
--   Monitoring
--   Alerting
--   High availability
--   Disaster recovery
--   Data retention enforcement
--   Compliance controls
--   Multi-tenant isolation
-
-These are intentionally separated from the initial prototype scope.
-
-------------------------------------------------------------------------
-
-# 31. Current Status
-
-### Foundation
-
--   [x] Repository initialized
--   [x] FastAPI application
--   [x] Angular application
--   [x] Health API
--   [x] Angular → FastAPI connectivity
--   [x] Domain schemas
--   [x] Initial backend tests
--   [x] Architecture documentation
-
-### Document Processing
-
--   [ ] File ingestion
--   [ ] File validation
--   [ ] PDF extraction
--   [ ] OCR
--   [ ] Classification
+## 17. Sample Data
 
 ### Salary
 
--   [ ] LLM extraction
--   [ ] Salary validation
--   [ ] Confidence
--   [ ] Salary UI
+```text
+samples/salary/
+├── Ananya Mehta Salary slip.pdf
+├── NextGen Corporate Salary Slip.png
+├── Payslip_Sanjib Das_September_2026.pdf
+└── TechFusion Corporate Salary Slip.png
+```
 
 ### Bank
 
--   [ ] Bank extraction
--   [ ] Transaction analysis
--   [ ] Salary detection
--   [ ] Recurring detection
--   [ ] EMI detection
--   [ ] Bank UI
+```text
+samples/bank/
+├── Axis Bank Savings Statement Layout.png
+├── HDFC Bank July 2025 Statement.png
+├── ICICI Bank August 2025 Statement.png
+├── PhonePe Digital Bank Statement.png
+└── SBI Account Statement Page.png
+```
 
 ### Reconciliation
 
--   [ ] Candidate matching
--   [ ] Scoring
--   [ ] Tolerance handling
--   [ ] Explainability
--   [ ] Human review
+```text
+samples/reconciliation/
+├── bank_sanjib_sep_2026_amount_mismatch.png
+├── bank_sanjib_sep_2026_match.png
+├── bank_sanjib_sep_2026_multiple_candidates.png
+├── bank_sanjib_sep_2026_no_salary.png
+└── salary_sanjib_sep_2026_match.png
+```
+
+Use only synthetic/test-oriented financial data in the repository. Do not add real financial documents or real PII.
+
+---
+
+## 18. Verified Reconciliation Scenarios
+
+The reconciliation workflow has been verified through the Angular UI.
+
+### Exact match
+
+```text
+Salary net:   ₹50,500
+Bank credit:  ₹50,500
+Status:       Matched
+Confidence:   95%
+```
+
+### Amount mismatch
+
+```text
+Salary net:   ₹50,500
+Bank credit:  ₹48,500
+Status:       Needs Review
+```
+
+The system does not automatically accept a materially different credit merely because other signals are strong.
+
+### Multiple candidates
+
+Two similarly strong salary-like credits result in:
+
+```text
+Multiple Candidates
+```
+
+The system does not silently choose between ambiguous candidates.
+
+### No salary
+
+When no credible salary credit exists:
+
+```text
+No Match
+```
+
+These scenarios demonstrate explicit handling of match, ambiguity, mismatch, and absence of a credible candidate.
+
+---
+
+## 19. Security & Privacy
+
+Financial documents contain sensitive information.
+
+Principles:
+
+- Never commit API keys.
+- Never commit `.env`.
+- Do not log complete financial documents.
+- Do not unnecessarily log raw OCR text.
+- Mask sensitive identifiers where appropriate.
+- Use temporary processing storage.
+- Clean temporary files after processing.
+- Do not expose internal stack traces.
+- Use synthetic/test-oriented sample data.
+- Document external OCR/LLM data exposure.
+
+When using a hosted LLM, a production system must additionally address provider retention, data processing agreements, PII minimization, data residency, encryption, access control, auditing, and deletion/retention policies.
+
+See `SECURITY.md`.
+
+---
+
+## 20. Design Principles
+
+### AI is not the source of truth
+
+The LLM performs extraction.
+
+Application code performs:
+
+- Calculations
+- Validation
+- Cross-field consistency checks
+- Financial analysis
+- Reconciliation scoring
+- Threshold decisions
+- Final status decisions
+
+### Multi-layer validation
+
+```text
+LLM Output
+  ↓
+Pydantic Schema
+  ↓
+Field Validation
+  ↓
+Cross-field Validation
+  ↓
+Deterministic Financial Rules
+  ↓
+Confidence
+```
+
+### Explain uncertainty
+
+The UI exposes:
+
+- Confidence
+- Validation results
+- Warnings
+- Candidate scores
+- Reconciliation reasons
+- Human-review requirements
+
+### Graceful failure
+
+The system prefers useful application errors over stack traces.
+
+### Avoid premature infrastructure
+
+The prototype does not require Kafka, Redis, Kubernetes, microservices, CQRS, or event sourcing.
+
+Priority:
+
+```text
+Correctness
+  ↓
+Reliability
+  ↓
+Explainability
+  ↓
+Testability
+  ↓
+Security
+  ↓
+Deployment
+  ↓
+Visual polish
+```
+
+---
+
+## 21. Prototype vs Production
+
+This repository is a prototype.
+
+A production implementation would additionally require:
+
+- Authentication
+- Authorization
+- Persistent storage
+- Encrypted object storage
+- Stronger PII controls
+- Audit logging
+- Rate limiting
+- Asynchronous processing
+- Worker infrastructure
+- Retry policies
+- Provider failover
+- Monitoring and alerting
+- High availability
+- Disaster recovery
+- Data retention enforcement
+- Compliance controls
+- Multi-tenant isolation
+- Formal model/provider evaluation
+- Production secrets management
+
+These are intentionally outside the current prototype scope.
+
+---
+
+## 22. Current Implementation Status
+
+### Foundation
+
+- [x] FastAPI application
+- [x] Angular application
+- [x] Health API
+- [x] Frontend/backend connectivity
+- [x] Domain schemas
+- [x] Architecture documentation
+- [x] API documentation
+- [x] Security documentation
+- [x] Decision documentation
+- [x] Limitations documentation
+- [x] Demo documentation
+
+### Document Processing
+
+- [x] File ingestion
+- [x] File validation
+- [x] File size validation
+- [x] PDF inspection
+- [x] Native PDF text extraction
+- [x] Image processing
+- [x] OCR fallback
+- [x] Scanned PDF OCR
+- [x] Text normalization
+- [x] Extraction quality metadata
+- [x] Graceful ingestion errors
+- [x] Document classification
+
+### Salary
+
+- [x] Salary classification
+- [x] Structured LLM extraction
+- [x] Mock provider
+- [x] OpenAI provider
+- [x] Schema validation
+- [x] Numeric normalization
+- [x] Gross/deduction/net validation
+- [x] Salary consistency validation
+- [x] Confidence calculation
+- [x] Salary UI
+- [x] Real salary extraction verification
+
+### Bank
+
+- [x] Bank extraction
+- [x] Date normalization
+- [x] Indian currency/number normalization
+- [x] Transaction validation
+- [x] Credit/debit totals
+- [x] Large transaction detection
+- [x] Salary credit candidates
+- [x] Recurring transaction detection
+- [x] EMI/loan indicators
+- [x] Bank UI
+- [x] Real bank extraction verification
+
+### Reconciliation
+
+- [x] Candidate generation
+- [x] Amount scoring
+- [x] Date scoring
+- [x] Narration scoring
+- [x] Periodicity scoring
+- [x] Candidate scoring
+- [x] Amount/date tolerance
+- [x] Multiple candidate handling
+- [x] No-match handling
+- [x] Needs-review handling
+- [x] Explainable results
+- [x] Reconciliation API
+- [x] Angular workflow
+- [x] Exact-match verification
+- [x] Amount-mismatch verification
+- [x] Multiple-candidate verification
+- [x] No-match verification
 
 ### Engineering
 
--   [ ] Complete test suite
--   [ ] Docker
--   [ ] CI
--   [ ] Deployment
--   [ ] Final QA
+- [x] Backend automated tests
+- [x] Frontend automated tests
+- [x] Production frontend build
+- [x] Secret-file protection
+- [x] Git diff validation
+- [x] End-to-end manual verification
+- [x] GitHub push
 
-------------------------------------------------------------------------
+Current verified tests:
 
-# 32. Start Here
-
-If you are continuing development from a clean checkout:
-
-``` bash
-git clone git@github.com:SAHILDAS/financial-document-analyzer.git
-cd financial-document-analyzer
+```text
+Backend:  183 passed
+Frontend: 38 passed
 ```
 
-### Start backend
+---
 
-``` bash
+## 23. Demo Workflow
+
+Recommended presentation:
+
+```text
+1. Introduce the problem
+2. Explain architecture
+3. Upload salary slip
+4. Show classification
+5. Show extracted salary fields
+6. Show deterministic salary validation
+7. Show confidence
+8. Upload bank statement
+9. Show transactions
+10. Show financial analysis
+11. Show salary-credit candidates
+12. Show recurring/EMI indicators
+13. Reconcile salary with bank
+14. Demonstrate exact match
+15. Demonstrate amount mismatch
+16. Demonstrate multiple candidates
+17. Demonstrate no match
+18. Explain security and production evolution
+```
+
+The key message:
+
+> **AI extracts. Engineering validates. Deterministic rules analyze. Explainability builds trust.**
+
+---
+
+## 24. Troubleshooting
+
+### Backend does not start
+
+```bash
 cd backend
-python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### Start frontend
+### Port 8000 is busy
 
-In a second terminal:
+```bash
+ss -ltnp | grep :8000
+```
 
-``` bash
+or:
+
+```bash
+lsof -i :8000
+```
+
+### Angular does not start
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### Angular cannot connect to backend
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
+Check `backend/.env`:
+
+```env
+FRONTEND_URL=http://localhost:4200
+```
+
+Restart FastAPI after environment changes.
+
+### OCR does not work
+
+```bash
+tesseract --version
+```
+
+### OpenAI extraction does not work
+
+Verify:
+
+```env
+LLM_PROVIDER=openai
+LLM_API_KEY=...
+```
+
+Tests use the mock provider and therefore do not require live LLM requests.
+
+---
+
+## 25. Git Workflow
+
+Before committing:
+
+```bash
+git status
+git diff --check
+git diff --stat
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "feat: add AI extraction and document reconciliation"
+```
+
+Push:
+
+```bash
+git push origin main
+```
+
+Verify:
+
+```bash
+git status
+git log -1 --oneline
+```
+
+Current milestone:
+
+```text
+d7fc4b2 feat: add AI extraction and document reconciliation
+```
+
+---
+
+## 26. Start Here
+
+```bash
+git clone git@github.com:SAHILDAS/financial-document-analyzer.git
+cd financial-document-analyzer
+```
+
+### Backend
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+### Frontend
+
+In another terminal:
+
+```bash
 cd financial-document-analyzer/frontend
 npm install
 npm start
@@ -1466,52 +1162,48 @@ npm start
 
 Open:
 
-``` text
+```text
 http://localhost:4200
 ```
 
-Verify:
+### Tests
 
-``` text
-Backend Connected
-```
-
-Then run the tests:
-
-``` bash
+```bash
 cd financial-document-analyzer/backend
 source .venv/bin/activate
-pytest -v
+pytest -q
 ```
 
-Build the frontend:
+```bash
+cd financial-document-analyzer/frontend
+npm test -- --watch=false
+```
 
-``` bash
-cd ../frontend
+### Build
+
+```bash
+cd financial-document-analyzer/frontend
 npm run build
 ```
 
-------------------------------------------------------------------------
+---
 
-# 33. Documentation
+## 27. Documentation
 
-Project documentation:
+- `ARCHITECTURE.md` — system and component architecture
+- `API.md` — API contracts and endpoint behavior
+- `SECURITY.md` — security and privacy considerations
+- `DECISIONS.md` — architectural decisions
+- `LIMITATIONS.md` — prototype limitations
+- `DEMO.md` — demonstration and presentation workflow
 
--   `ARCHITECTURE.md` --- system and component architecture
--   `API.md` --- API contracts and endpoint behavior
--   `SECURITY.md` --- security and privacy considerations
--   `DECISIONS.md` --- architectural decisions
--   `LIMITATIONS.md` --- prototype limitations
--   `DEMO.md` --- demonstration and presentation workflow
+---
 
-------------------------------------------------------------------------
+## 28. Final Objective
 
-# 34. Final Objective
+The prototype demonstrates a complete workflow:
 
-The finished prototype should demonstrate a reliable end-to-end
-workflow:
-
-``` text
+```text
 Financial Document
         ↓
 File Validation
@@ -1535,10 +1227,6 @@ Confidence + Explainability
 Human Review when Required
 ```
 
-The project should demonstrate that AI can handle the difficult
-unstructured-document understanding problem while conventional software
-engineering remains responsible for validation, calculations, business
-rules, reconciliation, and system reliability.
+The project demonstrates that AI can handle difficult unstructured-document understanding while conventional software engineering remains responsible for validation, calculations, business rules, financial analysis, reconciliation, confidence decisions, error handling, and reliability.
 
-> **AI extracts. Engineering validates. Deterministic rules analyze.
-> Explainability builds trust.**
+> **AI extracts. Engineering validates. Deterministic rules analyze. Explainability builds trust.**
