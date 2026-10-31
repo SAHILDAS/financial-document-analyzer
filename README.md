@@ -8,6 +8,63 @@ The system combines document ingestion, PDF/text extraction, OCR, document class
 
 ---
 
+## Quick Start
+
+Requires Python 3.11+, Node.js 24.x, and (for scanned PDFs / images) Tesseract OCR: `sudo apt install tesseract-ocr`.
+
+### First-time setup
+
+```bash
+# Backend
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp ../.env.example .env   # optional; set LLM_PROVIDER and LLM_API_KEY to enable AI extraction
+cd ..
+
+# Frontend
+cd frontend
+npm install
+cd ..
+```
+
+### Run
+
+Terminal 1 — backend (http://127.0.0.1:8000, Swagger at `/docs`):
+
+```bash
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+Terminal 2 — frontend (http://localhost:4200):
+
+```bash
+cd frontend
+npm start
+```
+
+### Stop
+
+Press `Ctrl+C` in each terminal. If a server was left running in the background:
+
+```bash
+fuser -k 8000/tcp 4200/tcp
+```
+
+### Test
+
+```bash
+(cd backend && .venv/bin/pytest -q)
+(cd frontend && npm test -- --watch=false)
+```
+
+OCR tests fail if Tesseract is not installed.
+
+---
+
 ## 1. Project Overview
 
 Financial documents are semi-structured and can vary in layout, labels, table structure, scan quality, date formats, and number formats.
@@ -382,7 +439,7 @@ pip install -r requirements.txt
 Create the environment file:
 
 ```bash
-cp .env.example .env
+cp ../.env.example .env
 ```
 
 Example configuration:
@@ -1146,7 +1203,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+cp ../.env.example .env
 uvicorn app.main:app --reload
 ```
 
